@@ -487,7 +487,7 @@ exports.restoreDataBackup = async (req, res) => {
             // host: "localhost",
             // user: "root",
             // password: "",
-            // database: "econestdb",
+            // database: "abodedb",
             host: process.env.DB_HOST,
             user: process.env.DB_USER,
             password: process.env.DB_PASSWORD,

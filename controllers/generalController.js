@@ -166,7 +166,7 @@ exports.restoreDataBackup = async (req, res) => {
                 host: "localhost",
                 user: "root",
                 password: "", // XAMPP default
-                database: "econestdb",
+                database: "abodedb",
                 multipleStatements: true
             });
 
