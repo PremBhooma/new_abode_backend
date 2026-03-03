@@ -1,0 +1,1104 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// Enums
+enum Employeestatus {
+  Active
+  Inactive
+  Suspended
+}
+
+enum Rolestatus {
+  Active
+  Inactive
+}
+
+enum GenderOptions {
+  Male
+  Female
+}
+
+model Employees {
+  id                BigInt          @id @default(autoincrement())
+  uuid              String?         @unique
+  name              String?         @db.VarChar(255)
+  email             String?         @unique @db.VarChar(255)
+  password          String?         @db.VarChar(300)
+  phone_code        String?         @db.VarChar(10)
+  phone_number      String?         @db.VarChar(100)
+  gender            GenderOptions? // Define this enum separately if used
+  employee_status   Employeestatus? @default(Active)
+  reporting_head_id BigInt?
+  otp               String?         @db.VarChar(10)
+  is_verified       Boolean?        @default(false)
+  role_id           BigInt?
+  otp_expiry        DateTime?
+  created_at        DateTime        @default(now())
+  updated_at        DateTime?
+  profile_pic_url   String?
+  profile_pic_path  String?
+
+  reporting_head_details       Employees?                     @relation("reporting_head", fields: [reporting_head_id], references: [id])
+  subordinate                  Employees[]                    @relation("reporting_head")
+  roledetails                  Roles?                         @relation("role", fields: [role_id], references: [id])
+  flatnotes                    Flatnotes[]
+  taskactivities               Taskactivities[]
+  flatfilemanager              Flatfilemanager[]
+  Customerfilemanager          Customerfilemanager[]
+  Customernotes                Customernotes[]
+  Customeractivities           Customeractivities[]
+  Customerflatupdateactivities Customerflatupdateactivities[]
+  Leadactivities               Leadsactivities[]
+  Leadsnotes                   Leadsnotes[]
+  Leadsfilemanager             Leadsfilemanager[]
+  assigned_leads               Leads[]                        @relation("LeadAssignedTo")
+  lead_transfers_from          Leadtransfer[]                 @relation("LeadTransferFrom")
+  lead_transfers_to            Leadtransfer[]                 @relation("LeadTransferTo")
+  lead_transfers_by            Leadtransfer[]                 @relation("LeadTransferBy")
+  added_leads                  Leads[]                        @relation("AddedByEmployee")
+  added_customer               Customers[]                    @relation("CustomerAddedByEmployee")
+  added_flat                   Flat[]                         @relation("FlatAddedByEmployee")
+  added_payment                Payments[]                     @relation("PaymentAddedByEmployee")
+  rewards                      Rewards[]
+  project_permissions          EmployeeProjectPermission[]
+  projects                     Project[]
+
+  @@index([name], name: "employees_name_index")
+  @@index([phone_code, phone_number], name: "employees_phone_index")
+  @@map("employees")
+}
+
+model Roles {
+  id           BigInt      @id @default(autoincrement())
+  name         String?     @db.VarChar(255)
+  default_role Boolean?    @default(false)
+  status       Rolestatus? @default(Active)
+  soft_delete  Boolean?    @default(false)
+  created_at   DateTime?   @default(now())
+  updated_at   DateTime?
+
+  userdetails Employees[] @relation("role")
+
+  @@index([name], name: "roles_name_index")
+  @@map("roles")
+}
+
+model Rolepermissions {
+  id          BigInt    @id @default(autoincrement())
+  role_id     BigInt?
+  permissions String?   @db.Text
+  created_at  DateTime? @default(now())
+  updated_at  DateTime?
+
+  @@index([role_id], name: "rolepermissions_role_id_index")
+  @@map("role_permissions")
+}
+
+enum CustomerStatus {
+  Active
+  Inactive
+  Suspended
+}
+
+enum Maritalstatus {
+  Single
+  Married
+}
+
+enum Powerofattorney {
+  Resident
+  NRI
+}
+
+enum Prefixes {
+  Mr
+  Mrs
+  Miss
+  Mx
+}
+
+model Customers {
+  id                                 BigInt           @id @default(autoincrement())
+  uuid                               String?          @unique @db.VarChar(255)
+  project_id                         BigInt?
+  profile_pic_url                    String?
+  profile_pic_path                   String?
+  prefixes                           Prefixes?
+  first_name                         String?          @db.VarChar(255)
+  last_name                          String?          @db.VarChar(255)
+  email                              String?          @unique @db.VarChar(255)
+  email_2                            String?          @db.VarChar(255)
+  phone_code                         String?          @db.VarChar(10)
+  phone_number                       String?          @db.VarChar(100)
+  gender                             GenderOptions?
+  landline_country_code              String?          @db.VarChar(10)
+  landline_city_code                 String?          @db.VarChar(10)
+  landline_number                    String?          @db.VarChar(100)
+  date_of_birth                      DateTime?        @db.Date
+  father_name                        String?          @db.VarChar(255)
+  spouse_prefixes                    Prefixes?
+  spouse_name                        String?          @db.VarChar(255)
+  marital_status                     Maritalstatus?
+  number_of_children                 Int?
+  wedding_aniversary                 DateTime?
+  spouse_dob                         DateTime?
+  pan_card_no                        String?          @db.VarChar(20)
+  aadhar_card_no                     String?          @db.VarChar(30)
+  country_of_citizenship             BigInt?
+  country_of_residence               BigInt?
+  mother_tongue                      String?          @db.VarChar(100)
+  name_of_poa                        String?          @db.VarChar(100)
+  holder_poa                         Powerofattorney?
+  // address_of_correspondence          String?          @db.Text
+  // correspondence_pincode             String?          @db.VarChar(20)
+  no_of_years_correspondence_address Int?
+  no_of_years_city                   Int?
+  // permanent_address                  String?          @db.Text
+  // permanent_pincode                  String?          @db.VarChar(20)
+  have_you_owned_abode               Boolean?         @default(false)
+  if_owned_project_name              String?          @db.VarChar(255)
+  source_of_lead                     String?
+  status                             CustomerStatus   @default(Active)
+  soft_delete                        Int              @default(0)
+  added_by_employee_id               BigInt?
+  loan_rejected                      Boolean?         @default(false)
+  created_at                         DateTime?        @default(now())
+  updated_at                         DateTime?
+
+  flats                          Flat[]
+  Profession                     Profession[]
+  country_of_citizenship_details Country?     @relation("CountryOfCitizenship", fields: [country_of_citizenship], references: [id])
+  country_of_residence_details   Country?     @relation("CountryOfResidence", fields: [country_of_residence], references: [id])
+  customer_added_by_employee     Employees?   @relation("CustomerAddedByEmployee", fields: [added_by_employee_id], references: [id])
+  project_details                Project?     @relation(fields: [project_id], references: [id])
+
+  payments            Payments[]
+  Customeraddress     Customeraddress[]
+  Customerfilemanager Customerfilemanager[] @relation("CustmerToFileManager")
+  Customernotes       Customernotes[]
+  Customerflat        Customerflat[]
+  Customeractivities  Customeractivities[]
+  Bookingstages       BookingStages[]
+  Ageingrecord        Ageingrecord[]
+  refundageingrecords Refundageingrecord[]
+  rewards             Rewards[]
+
+  @@map("customers")
+}
+
+model Customerflat {
+  id                         BigInt    @id @default(autoincrement())
+  flat_id                    BigInt?
+  customer_id                BigInt?
+  saleable_area_sq_ft        Int?
+  rate_per_sq_ft             Int?
+  discount                   Float?
+  base_cost_unit             Int?
+  application_date           DateTime?
+  amenities                  Float?
+  toatlcostofuint            Float?
+  gst                        Float?
+  costofunitwithtax          Float?
+  registrationcharge         Float?
+  manjeera_connection_charge Float?
+  manjeera_meter_charge      Float?
+  maintenancecharge          Float?
+  documentaionfee            Float?
+  corpusfund                 Float?
+  floor_rise_per_sq_ft       Float?
+  total_floor_rise           Float?
+  east_facing_per_sq_ft      Float?
+  total_east_facing          Float?
+  corner_per_sq_ft           Float?
+  total_corner               Float?
+  grand_total                Float?
+  custom_note                String?
+  created_at                 DateTime? @default(now())
+  updated_at                 DateTime?
+
+  customer                     Customers?                     @relation(fields: [customer_id], references: [id])
+  flat                         Flat?                          @relation(fields: [flat_id], references: [id])
+  Customerflatupdateactivities Customerflatupdateactivities[]
+  Ageingrecord                 Ageingrecord[]
+
+  @@map("customer_flat")
+}
+
+model Profession {
+  id                              BigInt  @id @default(autoincrement())
+  current_designation             String? @db.VarChar(250)
+  name_of_current_organization    String? @db.VarChar(250)
+  address_of_current_organization String? @db.Text
+  no_of_years_work_experience     Float?
+  current_annual_income           Float?
+  customer_id                     BigInt?
+
+  customer_details Customers? @relation(fields: [customer_id], references: [id])
+
+  created_at DateTime  @default(now())
+  updated_at DateTime?
+
+  @@map("profession")
+}
+
+enum AddressType {
+  Permanent
+  Correspondence
+}
+
+model Customeraddress {
+  id           BigInt       @id @default(autoincrement())
+  customer_id  BigInt?
+  address_type AddressType?
+  address      String?      @db.Text
+  city         Int?
+  state        Int?
+  country      BigInt?
+  pincode      String?      @db.VarChar(20)
+  created_at   DateTime     @default(now())
+  updated_at   DateTime?
+
+  customer_details     Customers? @relation(fields: [customer_id], references: [id])
+  city_to_customers    Cities?    @relation("CityToCustomers", fields: [city], references: [id])
+  state_to_customers   States?    @relation("StateToCustomers", fields: [state], references: [id])
+  country_to_customers Country?   @relation("CountryToCustomers", fields: [country], references: [id])
+
+  @@map("customer_address")
+}
+
+enum cities_status {
+  active
+  inactive
+}
+
+model Cities {
+  id             Int           @id @default(autoincrement())
+  name           String?       @db.VarChar(50)
+  state_id       Int?
+  country_id     Int?
+  latitude       String?       @db.VarChar(100)
+  longitude      String?       @db.VarChar(100)
+  mobile         String?       @db.VarChar(50)
+  status         cities_status @default(active)
+  city_meta_tags String        @db.Text
+  order_no       Int
+
+  city_to_customers Customeraddress[] @relation("CityToCustomers")
+  city_to_lead      Leadsaddress[]    @relation("CityToLead")
+
+  @@map("cities")
+}
+
+enum states_status {
+  active
+  inactive
+}
+
+model States {
+  id                 Int               @id @default(autoincrement())
+  name               String?           @db.VarChar(50)
+  status             states_status     @default(active)
+  iso2               String?           @db.VarChar(100)
+  country_id         Int?
+  state_to_customers Customeraddress[] @relation("StateToCustomers")
+  state_to_lead      Leadsaddress[]    @relation("StateToLead")
+
+  @@map("states")
+}
+
+model Country {
+  id                           BigInt            @id @default(autoincrement())
+  name                         String?           @db.VarChar(250)
+  iso3                         String?           @db.VarChar(3)
+  iso2                         String?           @db.VarChar(2)
+  phone_code                   String?           @db.VarChar(10)
+  currency                     String?           @db.VarChar(100)
+  currency_symbol              String?           @db.VarChar(10)
+  latitude                     Decimal?          @db.Decimal(10, 8)
+  longitude                    Decimal?          @db.Decimal(11, 8)
+  flag                         String?           @db.Text
+  timezone_name                String?           @db.VarChar(255)
+  timezone_utc                 String?           @db.VarChar(255)
+  created_at                   DateTime          @default(now())
+  updated_at                   DateTime?
+  country_of_citizenship       Customers[]       @relation("CountryOfCitizenship")
+  country_of_residence         Customers[]       @relation("CountryOfResidence")
+  country_to_customers         Customeraddress[] @relation("CountryToCustomers")
+  country_to_lead              Leadsaddress[]    @relation("CountryToLead")
+  Leads_country_of_citizenship Leads[]           @relation("CountryOfCitizenship")
+  Leads_country_of_residence   Leads[]           @relation("CountryOfResidence")
+
+  @@index([name], name: "country_name")
+  @@index([phone_code], name: "phone_code")
+  @@map("countries")
+}
+
+enum Flatstatus {
+  Sold
+  Unsold
+}
+
+enum FlatType {
+  Studio
+  OneBHK
+  OnePointFiveBHK
+  TwoBHK
+  TwoPointFiveBHK
+  ThreeBHK
+  ThreePointFiveBHK
+  FourBHK
+  FourPointFiveBHK
+  FiveBHK
+  Penthouse
+  Duplex
+}
+
+enum FacingDirection {
+  North
+  South
+  East
+  West
+  NorthEast
+  NorthWest
+  SouthEast
+  SouthWest
+}
+
+enum FurnishedStatus {
+  Furnished
+  SemiFurnished
+  Unfurnished
+}
+
+model Flat {
+  id                           BigInt           @id @default(autoincrement())
+  uuid                         String?          @unique @db.VarChar(255)
+  project_id                   BigInt?
+  flat_reward                  Boolean?         @default(false)
+  flat_no                      String?          @db.VarChar(255)
+  block_id                     BigInt?
+  floor_no                     String?          @db.VarChar(255)
+  square_feet                  Decimal?         @db.Decimal(10, 2)
+  type                         String?
+  facing                       FacingDirection?
+  east_face                    String?          @db.VarChar(255)
+  west_face                    String?          @db.VarChar(255)
+  north_face                   String?          @db.VarChar(255)
+  south_face                   String?          @db.VarChar(255)
+  bedrooms                     Int?
+  bathrooms                    Int?
+  balconies                    Int?
+  parking                      Decimal?         @db.Decimal(10, 2)
+  furnished_status             FurnishedStatus?
+  description                  String?          @db.Text
+  udl                          String?          @db.VarChar(255)
+  group_owner_id               BigInt?
+  group_owner                  Groupowner?      @relation(fields: [group_owner_id], references: [id])
+  corner                       Boolean?         @default(false)
+  mortgage                     Boolean?         @default(false)
+  floor_rise                   Boolean?         @default(false)
+  deed_number                  String?          @db.VarChar(255)
+  google_map_link              String?          @db.VarChar(255)
+  status                       Flatstatus?      @default(Unsold)
+  flat_img_url                 String?
+  flat_img_path                String?
+  totalAmount                  Float?
+  paidAmount                   Float?           @default(0)
+  customer_id                  BigInt?
+  added_by_employee_id         BigInt?
+  word_agreement_template_path String?
+  word_agreement_template_url  String?
+  pdf_agreement_template_path  String?
+  pdf_agreement_template_url   String?
+  word_sale_deed_template_path String?
+  word_sale_deed_template_url  String?
+  pdf_sale_deed_template_path  String?
+  pdf_sale_deed_template_url   String?
+  advance_payment              Boolean?         @default(false)
+  created_at                   DateTime?        @default(now())
+  updated_at                   DateTime?
+
+  customer               Customers?           @relation(fields: [customer_id], references: [id])
+  project                Project?             @relation(fields: [project_id], references: [id])
+  block                  Block?               @relation(fields: [block_id], references: [id])
+  flat_added_by_employee Employees?           @relation("FlatAddedByEmployee", fields: [added_by_employee_id], references: [id])
+  payments               Payments[]
+  notes                  Flatnotes[]
+  taskactivities         Taskactivities[]
+  flatfilemanagerdetails Flatfilemanager[]    @relation("FlatToFileManager")
+  Customerflat           Customerflat[]
+  Bookingstages          BookingStages[]
+  Ageingrecord           Ageingrecord[]
+  refundageingrecords    Refundageingrecord[]
+  rewards                Rewards[]
+
+  @@map("flats")
+}
+
+model Companyinfo {
+  id              BigInt    @id @default(autoincrement())
+  companyname     String?   @db.VarChar(255)
+  address_one     String?   @db.Text
+  address_two     String?   @db.Text
+  city            String?   @db.VarChar(255)
+  state           String?   @db.VarChar(255)
+  country         String?   @db.VarChar(255)
+  zipcode         String?   @db.VarChar(255)
+  phone_code      String?
+  phone_number    String?   @db.VarChar(255)
+  email           String?   @db.VarChar(255)
+  white_logo_url  String?   @db.VarChar(255)
+  white_logo_path String?   @db.VarChar(255)
+  dark_logo_url   String?   @db.VarChar(255)
+  dark_logo_path  String?   @db.VarChar(255)
+  favicon_url     String?   @db.VarChar(255)
+  favicon_path    String?   @db.VarChar(255)
+  created_at      DateTime? @default(now())
+  updated_at      DateTime?
+
+  @@map("company_info")
+}
+
+model Project {
+  id                              BigInt    @id @default(autoincrement())
+  uuid                            String?   @unique @db.VarChar(255)
+  project_name                    String?   @db.VarChar(255)
+  project_address                 String?   @db.Text
+  project_corner_price            Int?
+  project_east_price              Int?
+  project_six_floor_onwards_price Int?
+  employee_id                     BigInt?
+  project_rewards                 Boolean?  @default(false)
+  created_at                      DateTime? @default(now())
+  updated_at                      DateTime?
+
+  blocks              Block[]
+  flats               Flat[]
+  amenities           Amenities[]
+  payments            Payments[]
+  ageingrecords       Ageingrecord[]
+  refundageingrecords Refundageingrecord[]
+  coupongifts         Coupongifts[]
+  rewards             Rewards[]
+  leads               Leads[]
+  customers           Customers[]
+
+  employee_details     Employees?                  @relation(fields: [employee_id], references: [id])
+  employee_permissions EmployeeProjectPermission[]
+
+  @@map("project")
+}
+
+model EmployeeProjectPermission {
+  id          BigInt    @id @default(autoincrement())
+  employee_id BigInt?
+  project_id  BigInt?
+  created_at  DateTime? @default(now())
+  updated_at  DateTime?
+
+  employee Employees? @relation(fields: [employee_id], references: [id])
+  project  Project?   @relation(fields: [project_id], references: [id])
+
+  @@map("employee_project_permissions")
+}
+
+model Block {
+  id         BigInt    @id @default(autoincrement())
+  uuid       String?   @unique @db.VarChar(255)
+  block_name String?   @db.VarChar(255)
+  project_id BigInt?
+  created_at DateTime? @default(now())
+  updated_at DateTime?
+
+  project Project? @relation(fields: [project_id], references: [id])
+  flats   Flat[]   @relation // New relation to Flat
+
+  @@map("blocks")
+}
+
+model Payments {
+  id                   BigInt    @id @default(autoincrement())
+  uuid                 String?   @unique @db.VarChar(255)
+  project_id           BigInt?
+  flat_id              BigInt?
+  customer_id          BigInt?
+  amount               Float?
+  payment_type         String?
+  payment_towards      String?
+  payment_method       String?
+  bank                 String?
+  payment_date         DateTime?
+  trasnaction_id       String?
+  receipt_path         String?
+  receipt_url          String?
+  comment              String?
+  added_by_employee_id BigInt?
+  created_at           DateTime  @default(now())
+  updated_at           DateTime?
+
+  flat                      Flat?      @relation(fields: [flat_id], references: [id])
+  customer                  Customers? @relation(fields: [customer_id], references: [id])
+  project                   Project?   @relation(fields: [project_id], references: [id])
+  payment_added_by_employee Employees? @relation("PaymentAddedByEmployee", fields: [added_by_employee_id], references: [id])
+
+  @@map("payments")
+}
+
+model Parsedpayments {
+  id              BigInt    @id @default(autoincrement())
+  uuid            String?   @unique @db.VarChar(255)
+  amount          Float?
+  payment_type    String?
+  payment_towards String?
+  payment_method  String?
+  bank            String?
+  payment_date    DateTime?
+  transaction_id  String?
+  flat            String?
+  block           String?
+  project_id      BigInt?
+  comment         String?
+  created_at      DateTime  @default(now())
+  updated_at      DateTime?
+
+  @@map("parsedpayments")
+}
+
+model Flatnotes {
+  id           BigInt     @id @default(autoincrement())
+  flat_id      BigInt?    @db.BigInt
+  user_id      BigInt?    @db.BigInt
+  note_message String?    @db.Text
+  created_at   DateTime   @default(now())
+  updated_at   DateTime?
+  flat         Flat?      @relation(fields: [flat_id], references: [id])
+  user         Employees? @relation(fields: [user_id], references: [id])
+
+  @@map("flatnotes")
+}
+
+model Taskactivities {
+  id                  BigInt     @id @default(autoincrement())
+  flat_id             BigInt?
+  employee_id         BigInt?
+  ta_message          String?    @db.Text
+  created_at          DateTime?  @default(now())
+  updated_at          DateTime?
+  color_code          String?    @db.Text
+  employee_short_name String?    @db.Text
+  employeedetails     Employees? @relation(fields: [employee_id], references: [id])
+  taskdetails         Flat?      @relation(fields: [flat_id], references: [id])
+
+  @@map("taskactivities")
+}
+
+model Flatfilemanager {
+  id              BigInt     @id @default(autoincrement())
+  uuid            String?    @unique @db.VarChar(500)
+  name            String?    @db.VarChar(255)
+  file_icon_type  String?    @db.VarChar(255)
+  file_type       String?    @db.VarChar(255)
+  file_size       Int?
+  file_path       String?    @db.Text
+  file_url        String?    @db.Text
+  parent_id       BigInt?
+  flat_id         BigInt?
+  added_by        BigInt?
+  created_at      DateTime   @default(now())
+  updated_at      DateTime
+  employeedetails Employees? @relation(fields: [added_by], references: [id])
+  flatdetails     Flat?      @relation("FlatToFileManager", fields: [flat_id], references: [id])
+
+  @@index([parent_id], name: "flatfilemanager_parent_id_index")
+  @@map("flatfilemanager")
+}
+
+model Customerfilemanager {
+  id              BigInt     @id @default(autoincrement())
+  uuid            String?    @unique @db.VarChar(500)
+  name            String?    @db.VarChar(255)
+  file_icon_type  String?    @db.VarChar(255)
+  file_type       String?    @db.VarChar(255)
+  file_size       Int?
+  file_path       String?    @db.Text
+  file_url        String?    @db.Text
+  parent_id       BigInt?
+  customer_id     BigInt?
+  added_by        BigInt?
+  created_at      DateTime   @default(now())
+  updated_at      DateTime?
+  employeedetails Employees? @relation(fields: [added_by], references: [id])
+  customerdetails Customers? @relation("CustmerToFileManager", fields: [customer_id], references: [id])
+
+  @@index([parent_id], name: "customerfilemanager_parent_id_index")
+  @@map("customerfilemanager")
+}
+
+model Customernotes {
+  id           BigInt     @id @default(autoincrement())
+  customer_id  BigInt?    @db.BigInt
+  user_id      BigInt?    @db.BigInt
+  note_message String?    @db.Text
+  created_at   DateTime   @default(now())
+  updated_at   DateTime?
+  customers    Customers? @relation(fields: [customer_id], references: [id])
+  user         Employees? @relation(fields: [user_id], references: [id])
+
+  @@map("customernotes")
+}
+
+model Customeractivities {
+  id                  BigInt     @id @default(autoincrement())
+  customer_id         BigInt?
+  employee_id         BigInt?
+  ca_message          String?    @db.Text
+  created_at          DateTime?  @default(now())
+  updated_at          DateTime?
+  color_code          String?    @db.Text
+  employee_short_name String?    @db.Text
+  employeedetails     Employees? @relation(fields: [employee_id], references: [id])
+  customerdetails     Customers? @relation(fields: [customer_id], references: [id])
+
+  @@map("customeractivities")
+}
+
+model Columnstore {
+  id          BigInt  @id @default(autoincrement())
+  uuid        String? @unique @db.VarChar(500)
+  employee_id BigInt?
+  page_name   String? @db.VarChar(255)
+  columns     Json?
+
+  created_at DateTime? @default(now())
+  updated_at DateTime? @updatedAt
+
+  @@map("column_store")
+}
+
+model Backupdata {
+  id          BigInt    @id @default(autoincrement())
+  uuid        String?   @unique @db.VarChar(500)
+  backup_name String?   @db.VarChar(255)
+  backup_path String?   @db.Text
+  created_at  DateTime? @default(now())
+  updated_at  DateTime?
+
+  @@map("backup_data")
+}
+
+enum BackupScheduleStatus {
+  twoMinutes
+  fiveMinutes
+  Daily
+  Weekly
+  Monthly
+}
+
+model Backupschedule {
+  id         BigInt                @id @default(autoincrement())
+  schedule   BackupScheduleStatus?
+  created_at DateTime?             @default(now())
+  updated_at DateTime?
+
+  @@map("backup_schedule")
+}
+
+model Groupowner {
+  id         BigInt    @id @default(autoincrement())
+  uuid       String?   @unique @db.VarChar(500)
+  name       String?   @db.VarChar(255)
+  isDefault  Boolean?  @default(false)
+  created_at DateTime  @default(now())
+  updated_at DateTime?
+
+  flats Flat[]
+
+  @@map("group_owner")
+}
+
+model Amenities {
+  id         BigInt    @id @default(autoincrement())
+  project_id BigInt?
+  amount     Float?
+  flat_type  String?   @db.VarChar(255)
+  created_at DateTime  @default(now())
+  updated_at DateTime?
+
+  projectdetails Project? @relation(fields: [project_id], references: [id])
+
+  @@map("amenities")
+}
+
+model Customerflatupdateactivities {
+  id              BigInt        @id @default(autoincrement())
+  employee_id     BigInt?
+  customerflat_id BigInt?
+  message         String?       @db.Text
+  updated_at      DateTime?
+  created_at      DateTime?     @default(now())
+  employeedetails Employees?    @relation(fields: [employee_id], references: [id])
+  customerflat    Customerflat? @relation(fields: [customerflat_id], references: [id])
+
+  @@map("customer_flat_update_activities")
+}
+
+model BookingStages {
+  id          BigInt    @id @default(autoincrement())
+  name        String?   @db.VarChar(255)
+  flat_id     BigInt?
+  customer_id BigInt?
+  created_at  DateTime  @default(now())
+  updated_at  DateTime?
+
+  customerdetails Customers? @relation(fields: [customer_id], references: [id])
+  flatdetails     Flat?      @relation(fields: [flat_id], references: [id])
+
+  @@map("booking_stages")
+}
+
+enum LeadStatus {
+  Hot
+  Cold
+}
+
+enum LeadPurpose {
+  Enduse
+  Investment
+}
+
+enum LeadFunding {
+  Selfloan
+  Bankloan
+}
+
+model Leads {
+  id                                 BigInt           @id @default(autoincrement())
+  uuid                               String?          @unique @db.VarChar(255)
+  project_id                         BigInt?
+  profile_pic_url                    String?
+  profile_pic_path                   String?
+  prefixes                           Prefixes?
+  full_name                          String?          @db.VarChar(500)
+  email                              String?          @unique @db.VarChar(255)
+  email_2                            String?          @db.VarChar(255)
+  phone_code                         String?          @db.VarChar(10)
+  phone_number                       String?          @db.VarChar(100)
+  gender                             GenderOptions?
+  landline_country_code              String?          @db.VarChar(10)
+  landline_city_code                 String?          @db.VarChar(10)
+  landline_number                    String?          @db.VarChar(100)
+  date_of_birth                      DateTime?        @db.Date
+  father_name                        String?          @db.VarChar(255)
+  spouse_prefixes                    Prefixes?
+  spouse_name                        String?          @db.VarChar(255)
+  marital_status                     Maritalstatus?
+  number_of_children                 Int?
+  wedding_aniversary                 DateTime?
+  spouse_dob                         DateTime?
+  pan_card_no                        String?          @db.VarChar(20)
+  aadhar_card_no                     String?          @db.VarChar(30)
+  country_of_citizenship             BigInt?
+  country_of_residence               BigInt?
+  mother_tongue                      String?          @db.VarChar(100)
+  name_of_poa                        String?          @db.VarChar(100)
+  holder_poa                         Powerofattorney?
+  no_of_years_correspondence_address Int?
+  no_of_years_city                   Int?
+  have_you_owned_abode               Boolean?         @default(false)
+  if_owned_project_name              String?          @db.VarChar(255)
+  assigned_to_employee_id            BigInt?
+  source_of_lead                     String?          @db.VarChar(255)
+  lead_stage_id                      BigInt?
+  status                             CustomerStatus   @default(Active)
+  added_by_employee_id               BigInt?
+  created_at                         DateTime?        @default(now())
+  updated_at                         DateTime?
+  lead_assigned_date                 DateTime?
+  lead_status                        LeadStatus?
+  min_budget                         Float?
+  max_budget                         Float?
+  bedroom                            String?          @db.VarChar(50)
+  purpose                            LeadPurpose?
+  funding                            LeadFunding?
+  lead_age                           Int?
+
+  Leads_notes                    Leadsnotes[]
+  lead_address                   Leadsaddress[]
+  lead_profession                Leadsprofession[]
+  leads_activities               Leadsactivities[]
+  leads_file_manager             Leadsfilemanager[] @relation("LeadToFileManager")
+  country_of_citizenship_details Country?           @relation("CountryOfCitizenship", fields: [country_of_citizenship], references: [id])
+  country_of_residence_details   Country?           @relation("CountryOfResidence", fields: [country_of_residence], references: [id])
+  assigned_to                    Employees?         @relation("LeadAssignedTo", fields: [assigned_to_employee_id], references: [id])
+  stage_details                  Leadstages?        @relation("StageAssignedToLead", fields: [lead_stage_id], references: [id])
+  added_by_employee              Employees?         @relation("AddedByEmployee", fields: [added_by_employee_id], references: [id])
+  project_details                Project?           @relation(fields: [project_id], references: [id])
+
+  lead_transfers Leadtransfer[]
+
+  @@map("leads")
+}
+
+model Leadsprofession {
+  id                              BigInt    @id @default(autoincrement())
+  current_designation             String?   @db.VarChar(250)
+  name_of_current_organization    String?   @db.VarChar(250)
+  address_of_current_organization String?   @db.Text
+  no_of_years_work_experience     Float?
+  current_annual_income           Float?
+  lead_id                         BigInt?
+  created_at                      DateTime  @default(now())
+  updated_at                      DateTime?
+
+  Leads Leads? @relation(fields: [lead_id], references: [id])
+
+  @@map("leads_profession")
+}
+
+model Leadsaddress {
+  id           BigInt       @id @default(autoincrement())
+  lead_id      BigInt?
+  address_type AddressType?
+  address      String?      @db.Text
+  city         Int?
+  state        Int?
+  country      BigInt?
+  pincode      String?      @db.VarChar(20)
+  created_at   DateTime     @default(now())
+  updated_at   DateTime?
+
+  lead_details    Leads?   @relation(fields: [lead_id], references: [id])
+  city_to_lead    Cities?  @relation("CityToLead", fields: [city], references: [id])
+  state_to_lead   States?  @relation("StateToLead", fields: [state], references: [id])
+  country_to_lead Country? @relation("CountryToLead", fields: [country], references: [id])
+
+  @@map("leads_address")
+}
+
+model Leadsactivities {
+  id                  BigInt     @id @default(autoincrement())
+  lead_id             BigInt?
+  employee_id         BigInt?
+  ca_message          String?    @db.Text
+  created_at          DateTime?  @default(now())
+  updated_at          DateTime?
+  color_code          String?    @db.Text
+  employee_short_name String?    @db.Text
+  employee_details    Employees? @relation(fields: [employee_id], references: [id])
+  lead_details        Leads?     @relation(fields: [lead_id], references: [id])
+
+  @@map("leads_activities")
+}
+
+model Leadsnotes {
+  id               BigInt     @id @default(autoincrement())
+  lead_id          BigInt?    @db.BigInt
+  employee_id      BigInt?    @db.BigInt
+  note_message     String?    @db.Text
+  created_at       DateTime   @default(now())
+  updated_at       DateTime?
+  lead_details     Leads?     @relation(fields: [lead_id], references: [id])
+  employee_details Employees? @relation(fields: [employee_id], references: [id])
+
+  @@map("leads_notes")
+}
+
+model Leadsfilemanager {
+  id               BigInt     @id @default(autoincrement())
+  uuid             String?    @unique @db.VarChar(500)
+  name             String?    @db.VarChar(255)
+  file_icon_type   String?    @db.VarChar(255)
+  file_type        String?    @db.VarChar(255)
+  file_size        Int?
+  file_path        String?    @db.Text
+  file_url         String?    @db.Text
+  parent_id        BigInt?
+  lead_id          BigInt?
+  added_by         BigInt?
+  created_at       DateTime   @default(now())
+  updated_at       DateTime?
+  employee_details Employees? @relation(fields: [added_by], references: [id])
+  lead_details     Leads?     @relation("LeadToFileManager", fields: [lead_id], references: [id])
+
+  @@index([parent_id], name: "leadfilemanager_parent_id_index")
+  @@map("leads_file_manager")
+}
+
+model Saledeedtemplates {
+  id         BigInt    @id @default(autoincrement())
+  path       String?
+  file_url   String?
+  created_at DateTime  @default(now())
+  updated_at DateTime?
+
+  @@map("sale_deed_tempalte")
+}
+
+model Agreementtemplates {
+  id         BigInt    @id @default(autoincrement())
+  path       String?
+  file_url   String?
+  created_at DateTime  @default(now())
+  updated_at DateTime?
+
+  @@map("agreement_template")
+}
+
+model Leadstages {
+  id         BigInt    @id @default(autoincrement())
+  name       String?
+  order      Int?      @unique
+  created_at DateTime  @default(now())
+  updated_at DateTime?
+
+  leads Leads[] @relation("StageAssignedToLead")
+
+  @@map("lead_stages")
+}
+
+model Leadtransfer {
+  id               BigInt    @id @default(autoincrement())
+  from_employee_id BigInt?
+  to_employee_id   BigInt?
+  lead_id          BigInt?
+  transfered_by    BigInt?
+  created_at       DateTime? @default(now())
+  updated_at       DateTime?
+
+  from_employee          Employees? @relation("LeadTransferFrom", fields: [from_employee_id], references: [id])
+  to_employee            Employees? @relation("LeadTransferTo", fields: [to_employee_id], references: [id])
+  transfered_by_employee Employees? @relation("LeadTransferBy", fields: [transfered_by], references: [id])
+  lead                   Leads?     @relation(fields: [lead_id], references: [id])
+
+  @@map("lead_transfer")
+}
+
+enum AgeningRecordStatus {
+  NotApplied
+  Applied
+  Approved
+  Rejected
+  Cancelled
+}
+
+enum RegistrationStatus {
+  Registered
+  NotRegistered
+}
+
+model Ageingrecord {
+  id                       BigInt              @id @default(autoincrement())
+  project_id               BigInt?
+  flat_id                  BigInt?
+  customer_id              BigInt?
+  customer_flat            BigInt?
+  booking_date             DateTime?
+  total_amount             Float?
+  ageing_days              Int?
+  loan_Status              AgeningRecordStatus @default(NotApplied)
+  registration_status      RegistrationStatus  @default(NotRegistered)
+  loan_time_days           Boolean?            @default(false)
+  bank_name                String?
+  agent_name               String?
+  agent_contact            String?
+  agent_number             String?
+  loan_amount              Float?
+  loan_approved_amount     Float?
+  advance_payment          Boolean?            @default(false)
+  bank_agreement           Boolean?            @default(false)
+  disbursement             Boolean?            @default(false)
+  customer_balance_payment Float?
+  created_at               DateTime            @default(now())
+  updated_at               DateTime?
+
+  flat             Flat?         @relation(fields: [flat_id], references: [id])
+  customer         Customers?    @relation(fields: [customer_id], references: [id])
+  customerflatdata Customerflat? @relation(fields: [customer_flat], references: [id])
+  project          Project?      @relation(fields: [project_id], references: [id])
+
+  @@map("ageing_record")
+}
+
+model BanksList {
+  id         BigInt    @id @default(autoincrement())
+  name       String?
+  created_at DateTime  @default(now())
+  updated_at DateTime?
+
+  @@map("banks_list")
+}
+
+model Refundageingrecord {
+  id                   BigInt    @id @default(autoincrement())
+  project_id           BigInt?
+  flat_id              BigInt?
+  customer_id          BigInt?
+  refund_amount        Float?
+  refund_date          DateTime?
+  refund_transactionid String?
+  refund_status        Boolean   @default(false)
+  created_at           DateTime  @default(now())
+  updated_at           DateTime?
+
+  flat     Flat?      @relation(fields: [flat_id], references: [id])
+  customer Customers? @relation(fields: [customer_id], references: [id])
+  project  Project?   @relation(fields: [project_id], references: [id])
+
+  @@map("refund_ageing_record")
+}
+
+enum CouponGiftsStatus {
+  Active
+  Inactive
+}
+
+model Coupongifts {
+  id                   BigInt            @id @default(autoincrement())
+  project_id           BigInt?
+  name                 String?
+  coupon_gift_pic_url  String?
+  coupon_gift_pic_path String?
+  coupon_gift_id       String?
+  coupon_gift_status   CouponGiftsStatus @default(Active)
+  created_at           DateTime?         @default(now())
+  updated_at           DateTime?
+
+  project Project? @relation(fields: [project_id], references: [id])
+
+  @@map("coupon_gifts")
+}
+
+model Rewards {
+  id                    BigInt    @id @default(autoincrement())
+  project_id            BigInt?
+  employee_id           BigInt?
+  customer_id           BigInt?
+  flat_id               BigInt?
+  employee_otp          String?
+  customer_otp          String?
+  employee_otp_verified Boolean   @default(false)
+  customer_otp_verified Boolean   @default(false)
+  coupon_name           String?
+  coupon_gift_id        String?
+  coupon_gift_pic_url   String?
+  coupon_gift_pic_path  String?
+  rewards_step          Int?
+  received_reward       Boolean   @default(false)
+  received_reward_date  DateTime?
+  created_at            DateTime? @default(now())
+  updated_at            DateTime?
+
+  project  Project?   @relation(fields: [project_id], references: [id])
+  flat     Flat?      @relation(fields: [flat_id], references: [id])
+  employee Employees? @relation(fields: [employee_id], references: [id])
+  customer Customers? @relation(fields: [customer_id], references: [id])
+
+  @@map("rewards")
+}
