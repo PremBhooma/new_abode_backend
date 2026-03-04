@@ -2139,14 +2139,14 @@ exports.UploadParsedLeads = async (req, res) => {
         try {
           // ✅ Validate required fields first
           if (
-            !row["Full Name"]
+            !row["Full Name"] ||
+            !row["Phone Number"]
             // !row["Email Address"] ||
-            // !row["Phone Number"]
           ) {
             skipped.push({
               row,
               reason:
-                "Missing required fields (Full Name, Email Address, Phone Number)",
+                "Missing required fields (Full Name, Phone Number)",
             });
             continue;
           }
@@ -2271,15 +2271,32 @@ exports.UploadParsedLeads = async (req, res) => {
           // ✅ Generate UUID
           const uuid = "LEAD" + Math.floor(100000 + Math.random() * 900000);
 
-          const stage = await prisma.leadstages.findUnique({
-            where: { order: 1 },
-          });
+          let stage = null;
+          const leadStageName = row["Lead Stage"]?.toString().trim();
 
-          if (!stage) {
-            return res.status(200).json({
-              status: "error",
-              message: "Lead stage not found",
+          if (leadStageName) {
+            stage = await prisma.leadstages.findFirst({
+              where: { name: leadStageName },
             });
+
+            if (!stage) {
+              skipped.push({
+                row,
+                reason: `Lead stage '${leadStageName}' not found`,
+              });
+              continue;
+            }
+          } else {
+            stage = await prisma.leadstages.findFirst({
+              where: { name: "New Lead" },
+            });
+
+            if (!stage) {
+              return res.status(200).json({
+                status: "error",
+                message: "Default lead stage 'New Lead' not found",
+              });
+            }
           }
 
           // ✅ Validate New Fields
@@ -2289,7 +2306,13 @@ exports.UploadParsedLeads = async (req, res) => {
           const validFunding = ["Selfloan", "Bankloan"];
 
           let leadStatus = row["Lead Status"]?.toString().trim();
-          if (leadStatus && !validLeadStatus.includes(leadStatus)) leadStatus = null;
+          if (stage && stage.name && stage.name.toLowerCase() === "not interested") {
+            leadStatus = null;
+          } else if (!leadStatus) {
+            leadStatus = "Hot";
+          } else if (leadStatus && !validLeadStatus.includes(leadStatus)) {
+            leadStatus = null;
+          }
 
           let bedroomVal = row["Bedroom"]?.toString().trim();
           if (bedroomVal && !validBedroom.includes(bedroomVal)) bedroomVal = null;
