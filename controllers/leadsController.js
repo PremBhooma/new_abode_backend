@@ -2405,7 +2405,7 @@ exports.UploadParsedLeads = async (req, res) => {
           await prisma.leadsactivities.create({
             data: {
               lead_id: BigInt(lead.id),
-              ca_message: `Lead ${lead.first_name} created via bulk upload`,
+              ca_message: `Lead ${lead.full_name} created via bulk upload`,
               employee_id: BigInt(employee_id),
             },
           });
