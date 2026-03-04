@@ -2398,15 +2398,15 @@ exports.GetCustomersForExcel = async (req, res) => {
     });
 
     const customersData = customers.map((customer) => {
-      const permanent = customer.Customeraddress.find(
+      const permanent = customer?.Customeraddress?.find(
         (a) => a.address_type === "Permanent",
       );
-      const correspondence = customer.Customeraddress.find(
+      const correspondence = customer?.Customeraddress?.find(
         (a) => a.address_type === "Correspondence",
       );
 
       return {
-        id: customer?.id.toString(),
+        id: customer?.id?.toString(),
         customer_uid: customer?.uuid,
         prefixes: customer?.prefixes,
         first_name: customer?.first_name,
@@ -2458,7 +2458,7 @@ exports.GetCustomersForExcel = async (req, res) => {
         permanentPincode: permanent?.pincode || null,
 
         flat_details:
-          customer?.flats.map((flat) => ({
+          customer?.flats?.map((flat) => ({
             uuid: flat?.uuid,
             flat_no: flat?.flat_no,
             floor_no: flat?.floor_no,

@@ -21,7 +21,7 @@ router.get('/get-customers-flats', authenticateToken, customerController.GetCust
 router.get('/customeractivities', authenticateToken, customerController.CustomerActivities);
 router.get('/getcustomerslist', authenticateToken, customerController.GetCustomersList);
 
-router.get('/get-customers-for-excel', customerController.GetCustomersForExcel)
+router.get('/get-customers-for-excel', authenticateToken, customerController.GetCustomersForExcel)
 router.post('/upload-parsed-customers', customerController.uploadParsedCustomers)
 router.post('/convert-customer-to-lead', authenticateToken, customerController.ConvertCustomerToLead);
 module.exports = router;
