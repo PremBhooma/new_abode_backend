@@ -2658,8 +2658,30 @@ exports.uploadParsedFlats = async (req, res) => {
 
       const googleMapRegex = /^https:\/\/(www\.)?google\.[a-z.]+\/maps|^https:\/\/maps\.app\.goo\.gl\//;
 
+      const inserted = [];
+      const skipped = [];
+
       for (const row of data) {
         try {
+          // ✅ Required Columns Validation
+          const requiredFields = [
+            "Project",
+            "Block",
+            "Floor No",
+            "Flat No",
+            "Area(Sq.ft.)",
+            "Flat Type",
+            "Facing",
+          ];
+
+          const missingFields = requiredFields.filter(
+            (field) => !row[field] || row[field].toString().trim() === ""
+          );
+
+          if (missingFields.length > 0) {
+            throw new Error(`Missing required fields: ${missingFields.join(", ")}`);
+          }
+
           // ✅ find or create block
           const project = row["Project"];
           let projectId = null;
@@ -2679,13 +2701,11 @@ exports.uploadParsedFlats = async (req, res) => {
           const newUuid = "CRMEMP" + Math.floor(100000000 + Math.random() * 900000000).toString();
 
           if (!row["Flat No"]) {
-            console.log(`Skipping row: Flat value is empty`);
-            continue;
+            throw new Error(`Flat No is empty`);
           }
 
           if (!row["Block"] || !row["Block"].trim()) {
-            console.log(`Skipping row: Block value is empty`);
-            continue;
+            throw new Error(`Block value is empty`);
           }
 
           let blockRecord = await prisma.block.findFirst({
@@ -2727,8 +2747,9 @@ exports.uploadParsedFlats = async (req, res) => {
             return val.toString().toLowerCase() === "yes" ? true : false;
           };
 
-          const mortgage = parseBoolean(row["Mortgage"]);
           const corner = parseBoolean(row["Corner"]);
+          let flatReward = parseBoolean(row["Flat Reward"]);
+          if (flatReward === null) flatReward = false;
           // const floorRise = parseBoolean(row["Floor Rise"]);
 
           // ✅ Convert Flat Type label → value
@@ -2743,8 +2764,7 @@ exports.uploadParsedFlats = async (req, res) => {
           });
 
           if (existingFlat) {
-            console.log(`Skipping duplicate flat: Flat No ${row["Flat No"]} in Block ${row["Block"]}`);
-            continue;
+            throw new Error(`Duplicate Flat: Flat No ${row["Flat No"]} already exists in Block ${row["Block"]}`);
           }
 
           // ✅ Validate Google Map Link
@@ -2779,7 +2799,7 @@ exports.uploadParsedFlats = async (req, res) => {
               furnished_status: row["Furnishing Status"], // must match furnishingOptions value
               description: row["Description"]?.toString(),
               google_map_link: googleMapLink,
-              mortgage,
+              flat_reward: flatReward,
               corner,
               // floor_rise: floorRise,
               group_owner_id: groupOwnerRecord ? groupOwnerRecord.id : null,
@@ -2795,14 +2815,25 @@ exports.uploadParsedFlats = async (req, res) => {
               ta_message: `${newFlat.flat_no} Flat Added via bulk upload`,
             },
           });
+
+          inserted.push({
+            project: row["Project"],
+            block: row["Block"],
+            flat_no: row["Flat No"],
+          });
         } catch (err) {
           console.error(`Error processing row: ${JSON.stringify(row)} | ${err.message}`);
+          skipped.push({ row, reason: err.message });
         }
       }
 
       return res.status(200).json({
         status: "success",
-        message: "Flats uploaded successfully",
+        message: `Successfully processed ${inserted.length} flats. ${skipped.length} rows were skipped.`,
+        insertedCount: inserted.length,
+        skippedCount: skipped.length,
+        inserted,
+        skipped: skipped.slice(0, 10), // Only return top 10 for size constraints
       });
     } catch (error) {
       logger.error(`Upload Parsed Flats Error: ${error.message}, File: flatController-uploadParsedFlats`);
