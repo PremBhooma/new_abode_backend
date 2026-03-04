@@ -188,6 +188,14 @@ exports.GetCustomers = async (req, res) => {
         })) ?? [],
     }));
 
+    // Sort: customers without flats first, then those with flats
+    // Within each group, maintain the original created_at desc order
+    customerDetails.sort((a, b) => {
+      const aHasFlat = a.flat_details && a.flat_details.length > 0 ? 1 : 0;
+      const bHasFlat = b.flat_details && b.flat_details.length > 0 ? 1 : 0;
+      return aHasFlat - bHasFlat;
+    });
+
     return res.status(200).json({
       status: "success",
       customers: customerDetails || [],
