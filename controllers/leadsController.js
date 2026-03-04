@@ -2139,6 +2139,7 @@ exports.UploadParsedLeads = async (req, res) => {
         try {
           // ✅ Validate required fields first
           if (
+            !row["Project"] ||
             !row["Full Name"] ||
             !row["Phone Number"]
             // !row["Email Address"] ||
@@ -2146,9 +2147,28 @@ exports.UploadParsedLeads = async (req, res) => {
             skipped.push({
               row,
               reason:
-                "Missing required fields (Full Name, Phone Number)",
+                "Missing required fields (Project, Full Name, Phone Number)",
             });
             continue;
+          }
+
+          // ✅ Resolve Project
+          let projectId = null;
+          if (row["Project"]) {
+            const project = await prisma.project.findFirst({
+              where: {
+                project_name: row["Project"],
+              },
+            });
+
+            if (!project) {
+              skipped.push({
+                row,
+                reason: `Project '${row["Project"]}' not found`,
+              });
+              continue;
+            }
+            projectId = Number(project.id);
           }
 
           // ✅ Validate and clean prefix
@@ -2336,6 +2356,9 @@ exports.UploadParsedLeads = async (req, res) => {
           const lead = await prisma.leads.create({
             data: {
               uuid,
+              project_details: projectId
+                ? { connect: { id: BigInt(projectId) } }
+                : undefined,
               prefixes: prefix,
               full_name: row["Full Name"].toString().trim(),
               email: email,
