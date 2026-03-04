@@ -3099,18 +3099,40 @@ exports.uploadParsedCustomers = async (req, res) => {
       for (const row of data) {
         try {
           if (row["Prefixes"] && !validPrefixes.includes(row["Prefixes"])) {
-            row["Prefixes"] = null;
+            throw new Error(`Invalid Prefix: '${row["Prefixes"]}'. Valid options are: ${validPrefixes.join(", ")}`);
           }
 
           // ✅ Required fields
-          if (
-            !row["First Name"] ||
-            !row["Last Name"] ||
-            !row["Email Address"] ||
-            !row["Phone Number"]
-          ) {
-            skipped.push({ row, reason: "Missing required fields" });
-            continue;
+          const requiredFields = [
+            "Project",
+            "Prefixes",
+            "First Name",
+            "Last Name",
+            "Phone Number",
+            "Gender"
+          ];
+
+          const missingFields = requiredFields.filter(
+            (field) => !row[field] || row[field].toString().trim() === ""
+          );
+
+          if (missingFields.length > 0) {
+            throw new Error(`Missing required fields: ${missingFields.join(", ")}`);
+          }
+
+          // ✅ Resolve Project
+          let projectId = null;
+          if (row["Project"]) {
+            const project = await prisma.project.findFirst({
+              where: {
+                project_name: row["Project"].toString().trim(),
+              },
+            });
+
+            if (!project) {
+              throw new Error(`Project '${row["Project"]}' not found in the database.`);
+            }
+            projectId = project.id;
           }
 
           // ✅ Email validation
@@ -3119,38 +3141,46 @@ exports.uploadParsedCustomers = async (req, res) => {
             // simple email regex
             const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
             if (!emailRegex.test(email)) {
-              skipped.push({ row, reason: "Email address is not valid" });
-              continue;
+              throw new Error("Email address is not valid");
             }
 
             const emailExists = await prisma.customers.findFirst({
               where: { email: email },
             });
             if (emailExists) {
-              skipped.push({ row, reason: "Email already exists" });
-              continue;
+              throw new Error("Email already exists");
             }
           }
 
           // ✅ Phone validation
           const phone = row["Phone Number"].toString().trim();
           if (phone.length !== 10 || !/^\d{10}$/.test(phone)) {
-            skipped.push({
-              row,
-              reason: "Phone number is not valid (must be 10 digits)",
-            });
-            continue;
+            throw new Error("Phone number is not valid (must be 10 digits)");
           }
           const phoneExists = await prisma.customers.findFirst({
             where: { phone_number: phone },
           });
           if (phoneExists) {
-            skipped.push({ row, reason: "Phone number already exists" });
-            continue;
+            throw new Error("Phone number already exists");
           }
 
           if (row["Gender"] && !validGender.includes(row["Gender"])) {
-            row["Gender"] = null;
+            throw new Error(`Invalid Gender: '${row["Gender"]}'. Valid options are: ${validGender.join(", ")}`);
+          }
+
+          // ✅ Aadhar Card Validation
+          const aadharCardNo = row["Aadhar Card No"];
+          if (aadharCardNo && aadharCardNo.toString().trim().length !== 12) {
+            throw new Error("Aadhar Card is invalid (must be 12 digits)");
+          }
+
+          // ✅ PAN Card Validation
+          const panCardNo = row["Pan Card No"];
+          if (panCardNo) {
+            const panRegex = /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/;
+            if (!panRegex.test(panCardNo.toString().trim().toUpperCase())) {
+              throw new Error("PAN Card is invalid");
+            }
           }
 
           // ✅ Dropdown validations
@@ -3288,10 +3318,10 @@ exports.uploadParsedCustomers = async (req, res) => {
             data: {
               uuid,
               prefixes: row["Prefixes"] || null,
-              first_name: row["First Name"].trim(),
-              last_name: row["Last Name"].trim(),
-              email: row["Email Address"].trim(),
-              email_2: row["Alternate Email Address"] || null,
+              first_name: row["First Name"].toString().trim(),
+              last_name: row["Last Name"].toString().trim(),
+              email: email,
+              email_2: row["Alternate Email Address"] ? row["Alternate Email Address"].toString().trim() : null,
               phone_code: "91",
               phone_number: phone,
               gender: row["Gender"] || null,
@@ -3334,9 +3364,9 @@ exports.uploadParsedCustomers = async (req, res) => {
                   .toLowerCase() === "yes",
               if_owned_project_name: row["If Yes, Project Name"] || null,
               added_by_employee_id: BigInt(employee_id),
+              project_id: projectId, // ✅ Add Project ID
             },
           });
-
           // ✅ Insert Correspondence Address
           if (row["Address of Correspondence, Address"]) {
             await prisma.customeraddress.create({
@@ -3398,7 +3428,11 @@ exports.uploadParsedCustomers = async (req, res) => {
             },
           });
 
-          inserted.push(customer.email);
+          inserted.push({
+            name: `${row["First Name"]} ${row["Last Name"]}`,
+            phone: phone,
+            email: row["Email Address"] || "N/A"
+          });
         } catch (err) {
           skipped.push({ row, reason: err.message });
         }
@@ -3406,9 +3440,11 @@ exports.uploadParsedCustomers = async (req, res) => {
 
       return res.status(200).json({
         status: "success",
+        message: `Successfully processed ${inserted.length} customers. ${skipped.length} rows were skipped.`,
         insertedCount: inserted.length,
         skippedCount: skipped.length,
-        skipped,
+        inserted,
+        skipped: skipped.slice(0, 10),
       });
     } catch (error) {
       console.error("Upload customers error:", error);
