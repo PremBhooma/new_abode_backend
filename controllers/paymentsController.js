@@ -1411,70 +1411,137 @@ exports.uploadParsedPayments = async (req, res) => {
 
       const data = xlsx.utils.sheet_to_json(workbook.Sheets[sheetName]);
 
+      const skipped = [];
+      const inserted = [];
+      let skippedCount = 0;
+      let insertedCount = 0;
+
       await prisma.parsedpayments.deleteMany();
 
-      for (const row of data) {
+      for (let i = 0; i < data.length; i++) {
+        const row = data[i];
+        const rowNum = i + 2; // Accounting for header row usually at 1
+
+        let isValid = true;
+        let skipReason = [];
+
         const amount = row["Amount"];
-        const paymentType = row["Payment Type"];
-        const paymentTowards = row["Payment Towards"];
-        const paymentMethod = row["Payment Method"];
-        const bankName = row["Bank"];
+        const paymentType = row["Payment Type"]?.toString()?.trim();
+        const paymentTowards = row["Payment Towards"]?.toString()?.trim();
+        const paymentMethod = row["Payment Method"]?.toString()?.trim();
+        let bankName = row["Bank"]?.toString()?.trim() || null;
         const dateofPayment = row["Date of Payment"];
-        const transactionId = row["Transaction Id"];
-        const flat = row["Flat"];
-        const block = row["Block"];
-        const project = row["Project"];
-        const comment = row["Comment"];
+        const transactionId = row["Transaction Id"]?.toString()?.trim();
+        const flat = row["Flat"]?.toString()?.trim();
+        const block = row["Block"]?.toString()?.trim();
+        const project = row["Project"]?.toString()?.trim();
+        const comment = row["Comment"]?.toString()?.trim();
 
-        // if (!amount || !paymentType || !paymentTowards || !paymentMethod || !dateofPayment || !transactionId) {
-        //   console.log(`Missing required fields in row: ${JSON.stringify(row)}`);
-        //   continue;
-        // }
+        // Required Validations
+        if (!amount || !paymentType || !paymentTowards || !paymentMethod || !dateofPayment || !transactionId || !flat || !project) {
+          skipReason.push("Missing required fields (Amount, Type, Towards, Method, Date, Txn ID, Flat, or Project)");
+          isValid = false;
+        }
 
-        console.log("DATE_Before:", dateofPayment)
-
-
-        let paymentData = null;
-
-        if (!isNaN(dateofPayment)) {
-          // Case 1: Excel serial date (e.g., 45878)
-          const excelEpoch = new Date(Date.UTC(1900, 0, 1));
-          paymentData = new Date(excelEpoch.getTime() + (dateofPayment - 2) * 86400000);
+        // Bank Requirement Logic
+        if (paymentMethod === "DD" || paymentMethod === "Bank Deposit" || paymentMethod === "Cheque") {
+          if (!bankName) {
+            skipReason.push(`Bank is required for Payment Method '${paymentMethod}'`);
+            isValid = false;
+          }
         } else {
-          // Case 2: String date (different formats)
-          const parsedDate = dayjs(dateofPayment, ["DD-MM-YYYY", "D/M/YYYY", "MM-DD-YYYY", "YYYY-MM-DD"], true);
-          if (parsedDate.isValid()) {
-            paymentData = new Date(Date.UTC(parsedDate.year(), parsedDate.month(), parsedDate.date()));
+          bankName = null; // Enforce null if not required
+        }
+
+        // Date Parsing
+        let paymentData = null;
+        if (dateofPayment) {
+          if (!isNaN(dateofPayment)) {
+            const excelEpoch = new Date(Date.UTC(1900, 0, 1));
+            paymentData = new Date(excelEpoch.getTime() + (dateofPayment - 2) * 86400000);
+          } else {
+            const parsedDate = dayjs(dateofPayment, ["DD-MM-YYYY", "D/M/YYYY", "MM-DD-YYYY", "YYYY-MM-DD"], true);
+            if (parsedDate.isValid()) {
+              paymentData = new Date(Date.UTC(parsedDate.year(), parsedDate.month(), parsedDate.date()));
+            }
+          }
+          if (!paymentData || isNaN(paymentData.getTime())) {
+            skipReason.push("Invalid Payment Date format");
+            isValid = false;
           }
         }
-        console.log("DATE_After:", paymentData)
 
         const parsedAmount = parseFloat(amount);
+        if (isNaN(parsedAmount)) {
+          skipReason.push("Amount must be a valid number");
+          isValid = false;
+        }
 
+        // Context Resolution
         let projectId = null;
         if (project) {
           const projectData = await prisma.project.findFirst({
-            where: {
-              project_name: project,
-            },
+            where: { project_name: project },
           });
           if (projectData) {
             projectId = projectData.id;
           } else {
-            console.log(`Project not found: ${project}`);
+            skipReason.push("Project not found in DB");
+            isValid = false;
           }
         }
 
+        let dbFlat = null;
+        let dbCustomerFlat = null;
+
         if (projectId && flat) {
-          const isFlatExist = await prisma.flat.findFirst({
+          dbFlat = await prisma.flat.findFirst({
             where: {
               flat_no: flat.toString(),
               project_id: BigInt(projectId),
             },
           });
 
-          if (isFlatExist) {
-            await prisma.parsedpayments.create({
+          if (!dbFlat) {
+            skipReason.push("Flat not found under the specified Project");
+            isValid = false;
+          } else {
+            // Find active customer assignment to validate Booking Date
+            dbCustomerFlat = await prisma.customerflat.findFirst({
+              where: {
+                flat_id: dbFlat.id,
+              },
+              orderBy: { created_at: "desc" },
+              include: { customer: true }
+            });
+
+            if (!dbCustomerFlat || !dbCustomerFlat.customer) {
+              skipReason.push("No Active Customer found for this assigned Flat/Project");
+              isValid = false;
+            }
+
+            // else if (paymentData) {
+            //   // Booking Date validation - Use application_date if available, else created_at
+            //   const rawBookingDate = dbCustomerFlat.application_date || dbCustomerFlat.created_at;
+
+            //   const bookingDate = dayjs(rawBookingDate).startOf('day').toDate();
+            //   const normalizedPaymentDate = dayjs(paymentData).startOf('day').toDate();
+            //   const currentDate = dayjs().endOf('day').toDate();
+
+            //   if (normalizedPaymentDate < bookingDate) {
+            //     skipReason.push(`Payment Date (${dayjs(normalizedPaymentDate).format('DD-MM-YYYY')}) cannot be before Booking Date (${dayjs(bookingDate).format('DD-MM-YYYY')})`);
+            //     isValid = false;
+            //   } else if (normalizedPaymentDate > currentDate) {
+            //     skipReason.push(`Payment Date (${dayjs(normalizedPaymentDate).format('DD-MM-YYYY')}) cannot be in the future`);
+            //     isValid = false;
+            //   }
+            // }
+          }
+        }
+
+        if (isValid) {
+          try {
+            const newPayment = await prisma.parsedpayments.create({
               data: {
                 uuid: "ABDPT" + Math.floor(100000000 + Math.random() * 900000000).toString(),
                 amount: parsedAmount,
@@ -1484,19 +1551,38 @@ exports.uploadParsedPayments = async (req, res) => {
                 bank: bankName,
                 payment_date: paymentData,
                 transaction_id: transactionId,
-                flat: flat?.toString(),
-                block: block?.toString(),
+                flat: flat,
+                block: block || null,
                 project_id: projectId ? BigInt(projectId) : null,
                 comment: comment,
+                added_by_employee_id: employee_id ? BigInt(employee_id) : null,
               },
             });
+            inserted.push(newPayment);
+            insertedCount++;
+          } catch (createError) {
+            skipReason.push(`DB Error: ${createError.message}`);
+            isValid = false;
           }
+        }
+
+        if (!isValid) {
+          skipped.push({
+            transaction_id: transactionId || "N/A",
+            flat: flat || "N/A",
+            amount: amount || "N/A",
+            reason: skipReason.join(" | "),
+          });
+          skippedCount++;
         }
       }
 
       return res.status(200).json({
         status: "success",
         message: "Payments uploaded successfully",
+        insertedCount,
+        skippedCount,
+        skipped: skipped.slice(0, 10), // Send top 10 errors to avoid heavy payloads
       });
     } catch (error) {
       logger.error(`Upload Parsed Payments Error: ${error.message}, File: paymentsController-uploadParsedPayments`);

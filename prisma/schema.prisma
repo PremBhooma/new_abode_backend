@@ -69,6 +69,7 @@ model Employees {
   rewards                      Rewards[]
   project_permissions          EmployeeProjectPermission[]
   projects                     Project[]
+  parsedpayments               Parsedpayments[]
 
   @@index([name], name: "employees_name_index")
   @@index([phone_code, phone_number], name: "employees_phone_index")
@@ -552,21 +553,24 @@ model Payments {
 }
 
 model Parsedpayments {
-  id              BigInt    @id @default(autoincrement())
-  uuid            String?   @unique @db.VarChar(255)
-  amount          Float?
-  payment_type    String?
-  payment_towards String?
-  payment_method  String?
-  bank            String?
-  payment_date    DateTime?
-  transaction_id  String?
-  flat            String?
-  block           String?
-  project_id      BigInt?
-  comment         String?
-  created_at      DateTime  @default(now())
-  updated_at      DateTime?
+  id                   BigInt    @id @default(autoincrement())
+  uuid                 String?   @unique @db.VarChar(255)
+  amount               Float?
+  payment_type         String?
+  payment_towards      String?
+  payment_method       String?
+  bank                 String?
+  payment_date         DateTime?
+  transaction_id       String?
+  flat                 String?
+  block                String?
+  project_id           BigInt?
+  comment              String?
+  added_by_employee_id BigInt?
+  created_at           DateTime  @default(now())
+  updated_at           DateTime?
+
+  added_by_employee Employees? @relation(fields: [added_by_employee_id], references: [id])
 
   @@map("parsedpayments")
 }
