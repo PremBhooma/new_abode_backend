@@ -2353,6 +2353,12 @@ exports.GetCustomersForExcel = async (req, res) => {
         // if_owned_project_name: true,
         profile_pic_url: true,
         profile_pic_path: true,
+        project_details: {
+          select: {
+            id: true,
+            project_name: true,
+          },
+        },
         country_of_citizenship_details: {
           select: {
             name: true,
@@ -2427,6 +2433,7 @@ exports.GetCustomersForExcel = async (req, res) => {
         pan_card_no: customer?.pan_card_no,
         aadhar_card_no: customer?.aadhar_card_no,
         marital_status: customer?.marital_status,
+        project_name: customer?.project_details?.project_name ?? null,
         country_of_citizenship:
           customer?.country_of_citizenship_details?.name ?? null,
         country_of_residence:
@@ -2513,6 +2520,7 @@ exports.GetCustomersForExcel = async (req, res) => {
       "Country of Citizenship": customer.country_of_citizenship || "N/A",
       "Country of Residence": customer.country_of_residence || "N/A",
       "Mother Tongue": customer.mother_tongue || "N/A",
+      "Project Name": customer.project_name || "N/A",
       // "Name of POA": customer.name_of_poa || "N/A",
       // "Holder POA": customer.holder_poa || "N/A",
       // "Years at Correspondence Address": customer.no_of_years_correspondence_address != null ? customer.no_of_years_correspondence_address : "N/A",
@@ -2585,6 +2593,7 @@ exports.GetCustomersForExcel = async (req, res) => {
       "Country of Citizenship",
       "Country of Residence",
       "Mother Tongue",
+      "Project Name",
       "Status",
       "Created At",
       "Correspondence Country Name",
