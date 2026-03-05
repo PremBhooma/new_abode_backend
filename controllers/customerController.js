@@ -1884,11 +1884,12 @@ exports.uploadCustomerProfilePic = async (req, res) => {
 
 exports.searchCustomerForFlats = async (req, res) => {
   try {
-    const { searchQuery } = req.query;
+    const { searchQuery, project_id } = req.query;
 
     const searchCondition = {
       AND: [
         { soft_delete: 0 },
+        ...(project_id ? [{ project_id: BigInt(project_id) }] : []),
         ...(searchQuery
           ? [
             {
@@ -1919,6 +1920,7 @@ exports.searchCustomerForFlats = async (req, res) => {
         pan_card_no: true,
         aadhar_card_no: true,
         mother_tongue: true,
+        project_id: true,
         Customerflat: {
           where: {
             flat: {
@@ -1949,6 +1951,7 @@ exports.searchCustomerForFlats = async (req, res) => {
         pan_card_no: ele?.pan_card_no,
         aadhar_card_no: ele?.aadhar_card_no,
         mother_tongue: ele?.mother_tongue,
+        project_id: ele?.project_id?.toString(),
       };
     });
 

@@ -1169,7 +1169,7 @@ exports.uploadFlatPicture = async (req, res) => {
 
 exports.searchFlatsForCustomer = async (req, res) => {
   try {
-    const { flat_no, block_id, employeeId } = req.query;
+    const { flat_no, block_id, employeeId, project_id } = req.query;
 
     // 1. Get Employee role_id
     const employee = await prisma.employees.findUnique({
@@ -1215,6 +1215,7 @@ exports.searchFlatsForCustomer = async (req, res) => {
               contains: flat_no?.toString(),
             },
           }),
+        ...(project_id ? { project_id: BigInt(project_id) } : {}),
         status: {
           not: "Sold",
         },
