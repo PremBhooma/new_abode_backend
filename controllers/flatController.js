@@ -410,6 +410,7 @@ module.exports.GetFlatByUUID = async (req, res) => {
       include: {
         block: true,
         customer: true,
+        payments: true,
         group_owner: {
           select: {
             id: true,
@@ -452,34 +453,6 @@ module.exports.GetFlatByUUID = async (req, res) => {
       },
     });
 
-    // const getCustomerFlat = await prisma.customerflat.findFirst({
-    //   where: {
-    //     flat_id: flat?.id,
-    //     customer_id: flat?.customer_id,
-    //   },
-    //   select: {
-    //     application_date: true, // 👈 include application_date
-    //     // include other fields if needed
-    //     customer: {
-    //       select: {
-    //         uuid: true,
-    //         profile_pic_url: true,
-    //         prefixes: true,
-    //         first_name: true,
-    //         last_name: true,
-    //         email: true,
-    //         phone_code: true,
-    //         phone_number: true,
-    //         date_of_birth: true,
-    //         mother_tongue: true,
-    //         pan_card_no: true,
-    //         aadhar_card_no: true,
-    //       },
-    //     },
-    //   },
-    // });
-
-    console.log("Get Customer Flat", getCustomerFlat)
 
     let canAssignFlat = false;
 
@@ -518,6 +491,58 @@ module.exports.GetFlatByUUID = async (req, res) => {
     } catch (err) {
       console.error("Permission check failed:", err);
     }
+    let paymentSummary = null;
+    if (getCustomerFlat) {
+      const getPaidAmount = (towards) => {
+        if (!flat.payments) return 0;
+        return flat.payments
+          .filter(p => towards.includes(p.payment_towards))
+          .reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0);
+      };
+
+      paymentSummary = {
+        flat: {
+          actual: getCustomerFlat.toatlcostofuint || 0,
+          paid: getPaidAmount(["Flat", "Flat Cost", "Base Price", "Flat Cost (Base Price)"]),
+          remaining: (getCustomerFlat.toatlcostofuint || 0) - getPaidAmount(["Flat", "Flat Cost", "Base Price", "Flat Cost (Base Price)"])
+        },
+        gst: {
+          actual: getCustomerFlat.gst || 0,
+          paid: getPaidAmount(["GST"]),
+          remaining: (getCustomerFlat.gst || 0) - getPaidAmount(["GST"])
+        },
+        corpusFund: {
+          actual: getCustomerFlat.corpusfund || 0,
+          paid: getPaidAmount(["Corpus Fund"]),
+          remaining: (getCustomerFlat.corpusfund || 0) - getPaidAmount(["Corpus Fund"])
+        },
+        maintenanceCharges: {
+          actual: getCustomerFlat.maintenancecharge || 0,
+          paid: getPaidAmount(["Maintenance Charges", "Maintenance"]),
+          remaining: (getCustomerFlat.maintenancecharge || 0) - getPaidAmount(["Maintenance Charges", "Maintenance"])
+        },
+        documentationFee: {
+          actual: getCustomerFlat.documentaionfee || 0,
+          paid: getPaidAmount(["Documentation Fee", "Documentation", "Documentation Charges"]),
+          remaining: (getCustomerFlat.documentaionfee || 0) - getPaidAmount(["Documentation Fee", "Documentation", "Documentation Charges"])
+        },
+        manjeeraConnectionCharge: {
+          actual: getCustomerFlat.manjeera_connection_charge || 0,
+          paid: getPaidAmount(["Manjeera Connection Charge", "Manjeera Connection"]),
+          remaining: (getCustomerFlat.manjeera_connection_charge || 0) - getPaidAmount(["Manjeera Connection Charge", "Manjeera Connection"])
+        },
+        manjeeraMeterCharge: {
+          actual: getCustomerFlat.manjeera_meter_charge || 0,
+          paid: getPaidAmount(["Manjeera Meter Charge", "Manjeera Meter", "Manjeera Connection Meter"]),
+          remaining: (getCustomerFlat.manjeera_meter_charge || 0) - getPaidAmount(["Manjeera Meter Charge", "Manjeera Meter", "Manjeera Connection Meter"])
+        },
+        registration: {
+          actual: getCustomerFlat.registrationcharge || 0,
+          paid: getPaidAmount(["Registration", "Registration Charge", "Registration Charges"]),
+          remaining: (getCustomerFlat.registrationcharge || 0) - getPaidAmount(["Registration", "Registration Charge", "Registration Charges"])
+        }
+      };
+    }
 
     return res.status(200).json({
       status: "success",
@@ -525,6 +550,7 @@ module.exports.GetFlatByUUID = async (req, res) => {
       flat: serializeBigInt(flat),
       getCustomerFlat: serializeBigInt(getCustomerFlat),
       canAssignFlat,
+      paymentSummary
     });
   } catch (error) {
     logger.error(`Get Flat By UUID Error: ${error.message}, File: flatController-GetFlatByUUID`);
