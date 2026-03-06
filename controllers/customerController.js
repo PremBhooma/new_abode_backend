@@ -3625,6 +3625,7 @@ exports.ConvertCustomerToLead = async (req, res) => {
         no_of_years_city: customer.no_of_years_city,
         have_you_owned_abode: customer.have_you_owned_abode,
         if_owned_project_name: customer.if_owned_project_name,
+        project_id: customer.project_id,
         source_of_lead: customer.source_of_lead,
         lead_stage_id: returnedStage.id, // Assign the 'Returned' stage ID
         status: "Active",

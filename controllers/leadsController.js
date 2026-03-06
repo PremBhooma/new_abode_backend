@@ -2607,6 +2607,7 @@ exports.ConvertLeadToCustomer = async (req, res) => {
         no_of_years_city,
         have_you_owned_abode: have_you_owned_abode === "true",
         if_owned_project_name,
+        project_id: lead?.project_id || null,
         source_of_lead: lead?.source_of_lead || null,
         status: "Active",
         created_at: new Date(),
@@ -2841,6 +2842,7 @@ exports.ConvertLeadToCustomer = async (req, res) => {
     return res.status(201).json({
       status: "success",
       message: "Lead converted to customer successfully",
+      customerUuid: uuid
     });
   } catch (error) {
     logger.error(
