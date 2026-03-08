@@ -2024,6 +2024,7 @@ module.exports.GetCustomerFlats = async (req, res) => {
                 amount: true,
                 payment_date: true,
                 payment_type: true,
+                payment_towards: true,
                 trasnaction_id: true,
                 receipt_url: true,
                 id: true,
@@ -2036,6 +2037,13 @@ module.exports.GetCustomerFlats = async (req, res) => {
         rate_per_sq_ft: true,
         base_cost_unit: true,
         toatlcostofuint: true,
+        gst: true,
+        registrationcharge: true,
+        manjeera_connection_charge: true,
+        manjeera_meter_charge: true,
+        maintenancecharge: true,
+        documentaionfee: true,
+        corpusfund: true,
         grand_total: true,
       },
       orderBy: {
@@ -2053,6 +2061,55 @@ module.exports.GetCustomerFlats = async (req, res) => {
         (sum, payment) => sum + (Number(payment.amount) || 0),
         0,
       );
+
+      const getPaidAmount = (towards) => {
+        return matchingPayments
+          .filter(p => towards.includes(p.payment_towards))
+          .reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0);
+      };
+
+      const paymentSummary = {
+        flat: {
+          actual: note.toatlcostofuint || 0,
+          paid: getPaidAmount(["Flat", "Flat Cost", "Base Price", "Flat Cost (Base Price)"]),
+          remaining: (note.toatlcostofuint || 0) - getPaidAmount(["Flat", "Flat Cost", "Base Price", "Flat Cost (Base Price)"])
+        },
+        gst: {
+          actual: note.gst || 0,
+          paid: getPaidAmount(["GST"]),
+          remaining: (note.gst || 0) - getPaidAmount(["GST"])
+        },
+        corpusFund: {
+          actual: note.corpusfund || 0,
+          paid: getPaidAmount(["Corpus Fund"]),
+          remaining: (note.corpusfund || 0) - getPaidAmount(["Corpus Fund"])
+        },
+        maintenanceCharges: {
+          actual: note.maintenancecharge || 0,
+          paid: getPaidAmount(["Maintenance Charges", "Maintenance"]),
+          remaining: (note.maintenancecharge || 0) - getPaidAmount(["Maintenance Charges", "Maintenance"])
+        },
+        documentationFee: {
+          actual: note.documentaionfee || 0,
+          paid: getPaidAmount(["Documentation Fee", "Documentation", "Documentation Charges"]),
+          remaining: (note.documentaionfee || 0) - getPaidAmount(["Documentation Fee", "Documentation", "Documentation Charges"])
+        },
+        manjeeraConnectionCharge: {
+          actual: note.manjeera_connection_charge || 0,
+          paid: getPaidAmount(["Manjeera Connection Charge", "Manjeera Connection"]),
+          remaining: (note.manjeera_connection_charge || 0) - getPaidAmount(["Manjeera Connection Charge", "Manjeera Connection"])
+        },
+        manjeeraMeterCharge: {
+          actual: note.manjeera_meter_charge || 0,
+          paid: getPaidAmount(["Manjeera Meter Charge", "Manjeera Meter", "Manjeera Connection Meter"]),
+          remaining: (note.manjeera_meter_charge || 0) - getPaidAmount(["Manjeera Meter Charge", "Manjeera Meter", "Manjeera Connection Meter"])
+        },
+        registration: {
+          actual: note.registrationcharge || 0,
+          paid: getPaidAmount(["Registration", "Registration Charge", "Registration Charges"]),
+          remaining: (note.registrationcharge || 0) - getPaidAmount(["Registration", "Registration Charge", "Registration Charges"])
+        }
+      };
 
       return {
         id: note?.id.toString(),
@@ -2089,6 +2146,14 @@ module.exports.GetCustomerFlats = async (req, res) => {
         base_cost_unit: note?.base_cost_unit,
         toatlcostofuint: note?.toatlcostofuint,
         grand_total: note?.grand_total,
+        // gst: note?.gst,
+        // registrationcharge: note?.registrationcharge,
+        // manjeera_connection_charge: note?.manjeera_connection_charge,
+        // manjeera_meter_charge: note?.manjeera_meter_charge,
+        // maintenancecharge: note?.maintenancecharge,
+        // documentaionfee: note?.documentaionfee,
+        // corpusfund: note?.corpusfund,
+        paymentSummary,
       };
     });
 
