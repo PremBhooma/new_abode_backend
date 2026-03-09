@@ -475,6 +475,15 @@ model Project {
   project_corner_price            Int?
   project_east_price              Int?
   project_six_floor_onwards_price Int?
+  gst_percentage                  Float?
+  manjeera_connection_charges     Float?
+  manjeera_meter_charges          Float?
+  documentation_fee               Float?
+  registration_percentage         Float?
+  registration_base_charge        Float?
+  maintenance_rate_per_sqft       Float?
+  maintenance_duration_months     Float?
+  corpus_fund                     Float?
   employee_id                     BigInt?
   project_rewards                 Boolean?  @default(false)
   created_at                      DateTime? @default(now())
