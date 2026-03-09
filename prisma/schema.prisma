@@ -221,6 +221,8 @@ model Customerflat {
   total_corner               Float?
   grand_total                Float?
   custom_note                String?
+  cost_sheet_url             String?
+  cost_sheet_path            String?
   created_at                 DateTime? @default(now())
   updated_at                 DateTime?
 
