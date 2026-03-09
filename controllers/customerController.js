@@ -3870,3 +3870,128 @@ exports.ConvertCustomerToLead = async (req, res) => {
     });
   }
 };
+
+exports.uploadCostSheet = async (req, res) => {
+  const form = new multiparty.Form();
+
+  form.parse(req, async (err, fields, files) => {
+    if (err) {
+      logger.error(`Upload Cost Sheet Error: ${err.message}, File: customerController-uploadCostSheet`);
+      return res.status(500).json({ status: "error", message: err.message });
+    }
+
+    if (!fields.flat_id?.[0] || !fields.customer_flat_id?.[0] || !fields.flat_uuid?.[0] || !fields.employee_id?.[0] || !files.uploadfile?.[0]) {
+      return res.status(200).json({
+        status: "error",
+        message: "Missing required fields (flat_id, customer_flat_id, flat_uuid, employee_id, uploadfile)",
+      });
+    }
+
+    const flat_id = fields.flat_id[0];
+    const customer_flat_id = fields.customer_flat_id[0];
+    const flat_uid = fields.flat_uuid[0];
+    const employee_id = fields.employee_id[0];
+    const uploadedFile = files.uploadfile[0];
+
+    try {
+      const flatdetails = await prisma.flat.findFirst({
+        where: { uuid: flat_uid },
+      });
+
+      if (!flatdetails) {
+        return res.status(200).json({ status: "error", message: "Flat not found" });
+      }
+
+      const fileType = uploadedFile.headers['content-type'] === 'application/pdf' ? 'pdf' : path.extname(uploadedFile.originalFilename).substring(1);
+      if (fileType !== 'pdf') {
+        return res.status(200).json({ status: "error", message: "Only PDF files are allowed" });
+      }
+
+      // Cost sheets specifically go into uploads/flats/<flat_uuid>/cost_sheets/
+      const maindir = path.join(__dirname, "..", "uploads", "flats", flat_uid);
+      if (!fs.existsSync(maindir)) {
+        fs.mkdirSync(maindir, { recursive: true });
+      }
+
+      const costSheetDir = path.join(maindir, "cost_sheets");
+      if (!fs.existsSync(costSheetDir)) {
+        fs.mkdirSync(costSheetDir, { recursive: true });
+      }
+
+      const tempPath = uploadedFile.path;
+      const originalFilename = uploadedFile.originalFilename;
+      const ext = path.extname(originalFilename);
+      const timestamp = Date.now();
+      const newFilename = `${path.basename(originalFilename, ext)}_${timestamp}.pdf`;
+      const targetPath = path.join(costSheetDir, newFilename);
+
+      fs.copyFileSync(tempPath, targetPath);
+      fs.unlinkSync(tempPath);
+
+      const file_url = `${process.env.API_URL}/uploads/flats/${flat_uid}/cost_sheets/${newFilename}`;
+      const file_path = `cost_sheets/${newFilename}`;
+
+      // Update Customerflat
+      await prisma.customerflat.update({
+        where: { id: BigInt(customer_flat_id) },
+        data: {
+          cost_sheet_url: file_url,
+          cost_sheet_path: file_path
+        }
+      });
+
+      // Add to flatfilemanager so it shows up in documents
+      const fileUid = "ABODEF" + Math.floor(100000 + Math.random() * 900000);
+      await prisma.flatfilemanager.create({
+        data: {
+          name: originalFilename,
+          uuid: fileUid,
+          file_type: "pdf",
+          file_url: file_url,
+          file_icon_type: "pdf_icon",
+          file_path: file_path,
+          parent_id: null,
+          flat_id: flatdetails.id,
+          added_by: parseInt(employee_id),
+          created_at: new Date(),
+          updated_at: new Date(),
+        },
+      });
+
+      // Add to Customerflatupdateactivities
+      await prisma.customerflatupdateactivities.create({
+        data: {
+          customerflat_id: BigInt(customer_flat_id),
+          employee_id: BigInt(employee_id),
+          message: `• Uploaded new Cost Sheet: ${originalFilename}`,
+          created_at: new Date(),
+        },
+      });
+
+      // Also log in flat task activities
+      await prisma.taskactivities.create({
+        data: {
+          employee_id: BigInt(employee_id),
+          flat_id: flatdetails.id,
+          ta_message: `Cost Sheet uploaded: ${originalFilename}`,
+          employee_short_name: "F",
+          color_code: "blue",
+          created_at: new Date(),
+        },
+      });
+
+      return res.status(200).json({
+        status: "success",
+        message: "Cost sheet uploaded successfully",
+        data: {
+          cost_sheet_url: file_url,
+          cost_sheet_path: file_path
+        }
+      });
+
+    } catch (error) {
+      logger.error(`Upload Cost Sheet Error: ${error.message}, File: customerController-uploadCostSheet`);
+      return res.status(500).json({ status: "error", message: "Error saving file info to database" });
+    }
+  });
+};
