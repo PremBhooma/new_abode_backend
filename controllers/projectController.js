@@ -50,6 +50,15 @@ exports.getProject = async (req, res) => {
                 project_corner_price: projectData?.project_corner_price,
                 project_east_price: projectData?.project_east_price,
                 project_six_floor_onwards_price: projectData?.project_six_floor_onwards_price,
+                gst_percentage: projectData?.gst_percentage,
+                manjeera_connection_charges: projectData?.manjeera_connection_charges,
+                manjeera_meter_charges: projectData?.manjeera_meter_charges,
+                documentation_fee: projectData?.documentation_fee,
+                registration_percentage: projectData?.registration_percentage,
+                registration_base_charge: projectData?.registration_base_charge,
+                maintenance_rate_per_sqft: projectData?.maintenance_rate_per_sqft,
+                maintenance_duration_months: projectData?.maintenance_duration_months,
+                corpus_fund: projectData?.corpus_fund,
                 project_rewards: projectData?.project_rewards,
                 uuid: projectData?.uuid,
             }
@@ -108,6 +117,15 @@ exports.getAllProjects = async (req, res) => {
             project_corner_price: p.project_corner_price,
             project_east_price: p.project_east_price,
             project_six_floor_onwards_price: p.project_six_floor_onwards_price,
+            gst_percentage: p.gst_percentage,
+            manjeera_connection_charges: p.manjeera_connection_charges,
+            manjeera_meter_charges: p.manjeera_meter_charges,
+            documentation_fee: p.documentation_fee,
+            registration_percentage: p.registration_percentage,
+            registration_base_charge: p.registration_base_charge,
+            maintenance_rate_per_sqft: p.maintenance_rate_per_sqft,
+            maintenance_duration_months: p.maintenance_duration_months,
+            corpus_fund: p.corpus_fund,
             project_rewards: p.project_rewards
         }));
 
@@ -126,7 +144,11 @@ exports.getAllProjects = async (req, res) => {
 };
 
 exports.addProject = async (req, res) => {
-    const { project_name, project_address, project_corner_price, project_east_price, project_six_floor_onwards_price, project_rewards } = req.body;
+    const {
+        project_name, project_address, project_corner_price, project_east_price, project_six_floor_onwards_price, project_rewards,
+        gst_percentage, manjeera_connection_charges, manjeera_meter_charges, documentation_fee, registration_percentage,
+        registration_base_charge, maintenance_rate_per_sqft, maintenance_duration_months, corpus_fund
+    } = req.body;
 
     try {
         const newUuid = "PROJ" + Math.floor(100000000 + Math.random() * 900000000).toString();
@@ -139,6 +161,15 @@ exports.addProject = async (req, res) => {
                 project_corner_price: parseInt(project_corner_price) || 0,
                 project_east_price: parseInt(project_east_price) || 0,
                 project_six_floor_onwards_price: parseInt(project_six_floor_onwards_price) || 0,
+                gst_percentage: parseFloat(gst_percentage) || 0,
+                manjeera_connection_charges: parseFloat(manjeera_connection_charges) || 0,
+                manjeera_meter_charges: parseFloat(manjeera_meter_charges) || 0,
+                documentation_fee: parseFloat(documentation_fee) || 0,
+                registration_percentage: parseFloat(registration_percentage) || 0,
+                registration_base_charge: parseFloat(registration_base_charge) || 0,
+                maintenance_rate_per_sqft: parseFloat(maintenance_rate_per_sqft) || 0,
+                maintenance_duration_months: parseFloat(maintenance_duration_months) || 0,
+                corpus_fund: parseFloat(corpus_fund) || 0,
                 project_rewards: project_rewards || false,
                 created_at: new Date()
             },
@@ -158,7 +189,11 @@ exports.addProject = async (req, res) => {
 };
 
 exports.updateProject = async (req, res) => {
-    const { project_name, project_address, project_corner_price, project_east_price, project_six_floor_onwards_price, project_rewards, uuid } = req.body;
+    const {
+        project_name, project_address, project_corner_price, project_east_price, project_six_floor_onwards_price, project_rewards, uuid,
+        gst_percentage, manjeera_connection_charges, manjeera_meter_charges, documentation_fee, registration_percentage,
+        registration_base_charge, maintenance_rate_per_sqft, maintenance_duration_months, corpus_fund
+    } = req.body;
 
     try {
         if (!uuid) {
@@ -172,6 +207,15 @@ exports.updateProject = async (req, res) => {
                     project_corner_price: parseInt(project_corner_price) || 0,
                     project_east_price: parseInt(project_east_price) || 0,
                     project_six_floor_onwards_price: parseInt(project_six_floor_onwards_price) || 0,
+                    gst_percentage: parseFloat(gst_percentage) || 0,
+                    manjeera_connection_charges: parseFloat(manjeera_connection_charges) || 0,
+                    manjeera_meter_charges: parseFloat(manjeera_meter_charges) || 0,
+                    documentation_fee: parseFloat(documentation_fee) || 0,
+                    registration_percentage: parseFloat(registration_percentage) || 0,
+                    registration_base_charge: parseFloat(registration_base_charge) || 0,
+                    maintenance_rate_per_sqft: parseFloat(maintenance_rate_per_sqft) || 0,
+                    maintenance_duration_months: parseFloat(maintenance_duration_months) || 0,
+                    corpus_fund: parseFloat(corpus_fund) || 0,
                     project_rewards: project_rewards || false,
                     created_at: new Date()
                 },
@@ -202,6 +246,15 @@ exports.updateProject = async (req, res) => {
                 project_corner_price: parseInt(project_corner_price) || 0,
                 project_east_price: parseInt(project_east_price) || 0,
                 project_six_floor_onwards_price: parseInt(project_six_floor_onwards_price) || 0,
+                gst_percentage: parseFloat(gst_percentage) || 0,
+                manjeera_connection_charges: parseFloat(manjeera_connection_charges) || 0,
+                manjeera_meter_charges: parseFloat(manjeera_meter_charges) || 0,
+                documentation_fee: parseFloat(documentation_fee) || 0,
+                registration_percentage: parseFloat(registration_percentage) || 0,
+                registration_base_charge: parseFloat(registration_base_charge) || 0,
+                maintenance_rate_per_sqft: parseFloat(maintenance_rate_per_sqft) || 0,
+                maintenance_duration_months: parseFloat(maintenance_duration_months) || 0,
+                corpus_fund: parseFloat(corpus_fund) || 0,
                 project_rewards: project_rewards ?? existingProject.project_rewards,
                 updated_at: new Date()
             },
