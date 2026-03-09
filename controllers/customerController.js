@@ -458,22 +458,41 @@ exports.AddCustomerFlat = async (req, res) => {
       },
     });
 
+    let flat_project_id = null;
+    if (flat_id) {
+      const flatDetails = await prisma.flat.findUnique({
+        where: { id: BigInt(flat_id) },
+        select: { project_id: true }
+      });
+      if (flatDetails && flatDetails.project_id) {
+        flat_project_id = flatDetails.project_id;
+      }
+    }
+
     let amenity;
 
     if (flatType) {
+      let amenityWhere = { flat_type: flatType };
+      if (flat_project_id) {
+        amenityWhere.project_id = flat_project_id;
+      }
+
       amenity = await prisma.amenities.findFirst({
-        where: {
-          flat_type: flatType,
-        },
+        where: amenityWhere,
       });
 
-      if (!amenity) {
+      if (!amenity && amenities !== undefined && amenities !== null && amenities !== '') {
+        let newAmenityData = {
+          flat_type: flatType,
+          amount: parseFloat(amenities),
+          created_at: new Date(),
+        };
+        if (flat_project_id) {
+          newAmenityData.project_id = flat_project_id;
+        }
+
         amenity = await prisma.amenities.create({
-          data: {
-            flat_type: flatType,
-            amount: parseFloat(amenities),
-            created_at: new Date(),
-          },
+          data: newAmenityData,
         });
       }
     }
@@ -664,6 +683,46 @@ exports.UpdateCustomerFlat = async (req, res) => {
         status: "error",
         message: "Customer flat not found",
       });
+    }
+
+    let flat_project_id = null;
+    let flat_type = null;
+    const final_flat_id = flat_id ? BigInt(flat_id) : existingCustomerFlat.flat_id;
+    if (final_flat_id) {
+      const flatDetails = await prisma.flat.findUnique({
+        where: { id: final_flat_id },
+        select: { project_id: true, type: true }
+      });
+      if (flatDetails) {
+        flat_project_id = flatDetails.project_id;
+        flat_type = flatDetails.type;
+      }
+    }
+
+    if (flat_type && amenities !== undefined && amenities !== null && amenities !== '') {
+      let amenityWhere = { flat_type: flat_type };
+      if (flat_project_id) {
+        amenityWhere.project_id = flat_project_id;
+      }
+
+      let amenity = await prisma.amenities.findFirst({
+        where: amenityWhere,
+      });
+
+      if (!amenity) {
+        let newAmenityData = {
+          flat_type: flat_type,
+          amount: parseFloat(amenities),
+          created_at: new Date(),
+        };
+        if (flat_project_id) {
+          newAmenityData.project_id = flat_project_id;
+        }
+
+        await prisma.amenities.create({
+          data: newAmenityData,
+        });
+      }
     }
 
     const changes = [];

@@ -916,15 +916,20 @@ exports.getAllAmenities = async (req, res) => {
 
 
 exports.getListAmenities = async (req, res) => {
-    const { flatType } = req.query
+    const { flatType, project_id } = req.query
 
     try {
         let amenities;
         if (flatType) {
+            let whereCondition = {
+                flat_type: flatType
+            };
+            if (project_id) {
+                whereCondition.project_id = BigInt(project_id);
+            }
+
             amenities = await prisma.amenities.findFirst({
-                where: {
-                    flat_type: flatType
-                },
+                where: whereCondition,
                 select: {
                     amount: true
                 }
