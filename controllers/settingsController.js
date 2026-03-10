@@ -1008,9 +1008,14 @@ exports.uploadParsedGlobal = async (req, res) => {
         }
 
         try {
+            const allProjects = await prisma.project.findMany();
+            const projectMap = {};
+            allProjects.forEach(p => {
+                projectMap[p.project_name.toLowerCase().trim()] = parseInt(p.id);
+            });
+
             const workbook = xlsx.readFile(file.path);
 
-            console.log("workbook:", workbook)
 
             /** -----------------
              * 1. Process Flats Sheet
@@ -1031,19 +1036,21 @@ exports.uploadParsedGlobal = async (req, res) => {
 
                 for (const row of flatData) {
                     try {
-                        if (!row["Flat No"] || !row["Block"]) {
+                        if (!row["Flat No"] || !row["Block"] || !row["Project"]) {
                             flatResult.skipped++;
-                            flatResult.skippedRows.push({ row, reason: "Missing Flat No or Block" });
+                            flatResult.skippedRows.push({ row, reason: "Missing Flat No, Block or Project" });
                             continue;
                         }
 
-                        const getProjectId = await prisma.project.findFirst({
-                            select: { id: true },
-                            orderBy: { id: "desc" },
-                        });
+                        const project_id = projectMap[row["Project"].toString().trim().toLowerCase()];
+                        if (!project_id) {
+                            flatResult.skipped++;
+                            flatResult.skippedRows.push({ row, reason: "Project not found" });
+                            continue;
+                        }
 
                         let blockRecord = await prisma.block.findFirst({
-                            where: { block_name: row["Block"].trim() },
+                            where: { block_name: row["Block"].trim(), project_id: project_id },
                         });
 
                         if (!blockRecord) {
@@ -1051,7 +1058,7 @@ exports.uploadParsedGlobal = async (req, res) => {
                                 data: {
                                     uuid: "CRMEMP" + Math.floor(100000000 + Math.random() * 900000000),
                                     block_name: row["Block"].trim(),
-                                    project_id: getProjectId?.id,
+                                    project_id: project_id,
                                 },
                             });
                         }
@@ -1097,11 +1104,21 @@ exports.uploadParsedGlobal = async (req, res) => {
                             googleMapLink = null;
                         }
 
+                        let floorNoVal = row["Floor No"];
+                        if (floorNoVal !== undefined && floorNoVal !== null) {
+                            if (typeof floorNoVal === "object" && floorNoVal.result !== undefined) {
+                                floorNoVal = floorNoVal.result;
+                            }
+                            floorNoVal = floorNoVal.toString().trim();
+                        } else {
+                            floorNoVal = null;
+                        }
+
                         const newFlat = await prisma.flat.create({
                             data: {
                                 uuid: "ABODE" + Math.floor(100000000 + Math.random() * 900000000),
                                 flat_no: row["Flat No"].toString(),
-                                floor_no: row["Floor No"]?.toString(),
+                                floor_no: floorNoVal,
                                 block_id: blockRecord.id,
                                 square_feet: row["Area(Sq.ft.)"] ? parseFloat(row["Area(Sq.ft.)"]) : null,
                                 udl: row["UDL"]?.toString(),
@@ -1123,7 +1140,7 @@ exports.uploadParsedGlobal = async (req, res) => {
                                 corner: parseBoolean(row["Corner"]),
                                 // floor_rise: parseBoolean(row["Floor Rise"]),
                                 group_owner_id: groupOwnerRecord ? groupOwnerRecord.id : null,
-                                project_id: getProjectId?.id,
+                                project_id: project_id,
                                 added_by_employee_id: BigInt(employee_id),
                             },
                         });
@@ -1442,15 +1459,22 @@ exports.uploadParsedGlobal = async (req, res) => {
 
 
                         // ✅ Required fields
-                        if (!row["Flat No"] || !row["Block"] || !row["Customer Email"]) {
+                        if (!row["Flat No"] || !row["Block"] || !row["Customer Email"] || !row["Project"]) {
                             assignFlatToCustomerResult.skipped++;
-                            assignFlatToCustomerResult.skippedRows.push({ row, reason: "Missing one of the required fields - Flat, Block, Customer Email" });
+                            assignFlatToCustomerResult.skippedRows.push({ row, reason: "Missing one of the required fields - Project, Flat, Block, Customer Email" });
+                            continue;
+                        }
+
+                        const project_id = projectMap[row["Project"].toString().trim().toLowerCase()];
+                        if (!project_id) {
+                            assignFlatToCustomerResult.skipped++;
+                            assignFlatToCustomerResult.skippedRows.push({ row, reason: "Project not found" });
                             continue;
                         }
 
                         // Find Block
                         const blockRecord = await prisma.block.findFirst({
-                            where: { block_name: row["Block"].trim() },
+                            where: { block_name: row["Block"].trim(), project_id: project_id },
                         });
 
                         if (!blockRecord) {
@@ -1484,9 +1508,9 @@ exports.uploadParsedGlobal = async (req, res) => {
                             continue;
                         }
 
-                        if (parseFloat(existingFlat?.square_feet) !== row["Saleable Area (sq.ft.) (₹)"]) {
+                        if (parseFloat(existingFlat?.square_feet) !== row["Saleable Area (sq.ft.)"]) {
                             assignFlatToCustomerResult.skipped++;
-                            assignFlatToCustomerResult.skippedRows.push({ row, reason: "Saleable Area (sq.ft.) as not matched with flat Area" });
+                            assignFlatToCustomerResult.skippedRows.push({ row, reason: "Saleable Area (sq.ft.) has not matched with flat Area" });
                             continue;
                         }
 
@@ -1541,7 +1565,7 @@ exports.uploadParsedGlobal = async (req, res) => {
 
 
                         // ✅ Date validations
-                        const parsedApplicationDate = parseDate(row["Application Date"]);
+                        const parsedApplicationDate = parseDate(row["Booking Date"]);
 
 
 
@@ -1551,7 +1575,7 @@ exports.uploadParsedGlobal = async (req, res) => {
                                 flat_id: BigInt(existingFlat?.id),
                                 customer_id: BigInt(existingCustomer?.id),
                                 application_date: parsedApplicationDate,
-                                saleable_area_sq_ft: parseInt(row["Saleable Area (sq.ft.) (₹)"]),
+                                saleable_area_sq_ft: parseInt(row["Saleable Area (sq.ft.)"]),
                                 rate_per_sq_ft: parseInt(row["Rate Per Sq.ft (₹)"]),
                                 discount: parseFloat(row["Discount Rate Per Sq.ft (₹)"]) || null,
                                 base_cost_unit: parseInt(row["Base Cost of the Unit (₹)"]),
@@ -1563,10 +1587,10 @@ exports.uploadParsedGlobal = async (req, res) => {
                                 total_corner: totalCorner,
                                 amenities: parseFloat(row["Amenities (₹)"]) || null,
                                 toatlcostofuint: parseFloat(row["Total Cost of Unit (₹)"]) || null,
-                                gst: parseFloat(row["GST (5%) (₹)"]) || null,
+                                gst: parseFloat(row["GST (₹)"]) || null,
                                 costofunitwithtax: parseFloat(row["Cost of Unit with Tax (₹)"]) || null,
-                                registrationcharge: parseFloat(row["Registration @ 7.6% + 1050/- (₹)"]) || null,
-                                maintenancecharge: parseFloat(row["Maintenance @3/- per sqft for 2 Yrs (₹)"]) || null,
+                                registrationcharge: parseFloat(row["Registration (₹)"]) || null,
+                                maintenancecharge: parseFloat(row["Maintenance (₹)"]) || null,
                                 documentaionfee: parseFloat(row["Documentation Fee (₹)"]) || null,
                                 corpusfund: parseFloat(row["Corpus Fund (₹)"]) || null,
                                 grand_total: parseFloat(row["Grand Total (₹)"]) || null,
@@ -1634,15 +1658,22 @@ exports.uploadParsedGlobal = async (req, res) => {
                 for (const row of paymentData) {
                     try {
                         // ✅ Required fields
-                        if (!row["Amount"] || !row["Payment Type"] || !row["Payment Towards"] || !row["Payment Method"] || !row["Date of Payment"] || !row["Transaction Id"] || !row["Flat No"] || !row["Block"]) {
+                        if (!row["Amount"] || !row["Payment Type"] || !row["Payment Towards"] || !row["Payment Method"] || !row["Date of Payment"] || !row["Transaction Id"] || !row["Flat"] || !row["Block"] || !row["Project"]) {
                             paymentResult.skipped++;
-                            paymentResult.skippedRows.push({ row, reason: "Missing required fields - Flat, Block, Amount, Payment Type, Payment Towards, Payment Method, Date of Payment, Transaction Id" });
+                            paymentResult.skippedRows.push({ row, reason: "Missing required fields - Project, Flat, Block, Amount, Payment Type, Payment Towards, Payment Method, Date of Payment, Transaction Id" });
+                            continue;
+                        }
+
+                        const project_id = projectMap[row["Project"].toString().trim().toLowerCase()];
+                        if (!project_id) {
+                            paymentResult.skipped++;
+                            paymentResult.skippedRows.push({ row, reason: "Project not found" });
                             continue;
                         }
 
                         // Find Block
                         const blockRecord = await prisma.block.findFirst({
-                            where: { block_name: row["Block"].trim() },
+                            where: { block_name: row["Block"].trim(), project_id: project_id },
                         });
 
                         if (!blockRecord) {
@@ -1654,7 +1685,7 @@ exports.uploadParsedGlobal = async (req, res) => {
                         // Find Flat under this Block
                         const existingFlat = await prisma.flat.findFirst({
                             where: {
-                                flat_no: row["Flat No"].toString(),
+                                flat_no: row["Flat"].toString(),
                                 block_id: blockRecord.id,
                             },
                             select: {
