@@ -283,6 +283,7 @@ exports.AddCustomer = async (req, res) => {
       where: {
         phone_code,
         phone_number,
+        project_id: project_id ? BigInt(project_id) : undefined,
       },
     });
     if (existingPhone) {
@@ -1002,6 +1003,7 @@ exports.UpdateCustomer = async (req, res) => {
         where: {
           phone_code,
           phone_number,
+          project_id: customerExist?.project_id,
           uuid: { not: customerUuid },
         },
       });
@@ -3302,7 +3304,7 @@ exports.uploadParsedCustomers = async (req, res) => {
             throw new Error("Phone number is not valid (must be 10 digits)");
           }
           const phoneExists = await prisma.customers.findFirst({
-            where: { phone_number: phone },
+            where: { phone_number: phone, project_id: projectId ? BigInt(projectId) : undefined },
           });
           if (phoneExists) {
             throw new Error("Phone number already exists");

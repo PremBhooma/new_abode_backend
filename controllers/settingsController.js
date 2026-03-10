@@ -1024,7 +1024,9 @@ exports.uploadParsedGlobal = async (req, res) => {
 
             if (workbook.SheetNames.includes("Flat Template")) {
                 const flatSheet = workbook.Sheets["Flat Template"];
-                const flatData = xlsx.utils.sheet_to_json(flatSheet);
+                const flatData = xlsx.utils.sheet_to_json(flatSheet, { defval: "" });
+
+                console.log("Flat_data:", flatData)
 
                 const flatTypeMap = {
                     "2 BHK": "2 BHK",
@@ -1036,9 +1038,9 @@ exports.uploadParsedGlobal = async (req, res) => {
 
                 for (const row of flatData) {
                     try {
-                        if (!row["Flat No"] || !row["Block"] || !row["Project"]) {
+                        if (!row["Flat No"] || !row["Floor No"] || !row["Block"] || !row["Project"]) {
                             flatResult.skipped++;
-                            flatResult.skippedRows.push({ row, reason: "Missing Flat No, Block or Project" });
+                            flatResult.skippedRows.push({ row, reason: "Missing Flat No, Floor No, Block or Project" });
                             continue;
                         }
 
@@ -1085,7 +1087,9 @@ exports.uploadParsedGlobal = async (req, res) => {
 
                         const existingFlat = await prisma.flat.findFirst({
                             where: {
+                                project_id: BigInt(project_id),
                                 flat_no: row["Flat No"].toString(),
+                                floor_no: row["Floor No"].toString(),
                                 block_id: blockRecord.id,
                             },
                         });
@@ -1094,7 +1098,7 @@ exports.uploadParsedGlobal = async (req, res) => {
                             flatResult.skipped++;
                             flatResult.skippedRows.push({
                                 row,
-                                reason: `Duplicate flat: ${row["Flat No"]} in ${row["Block"]}`,
+                                reason: `Duplicate flat: ${row["Flat No"]} with Floor No: ${row["Floor No"]} in ${row["Block"]}`,
                             });
                             continue;
                         }
@@ -1113,6 +1117,8 @@ exports.uploadParsedGlobal = async (req, res) => {
                         } else {
                             floorNoVal = null;
                         }
+
+                        console.log("Floor_No: ", floorNoVal);
 
                         const newFlat = await prisma.flat.create({
                             data: {
@@ -1227,9 +1233,16 @@ exports.uploadParsedGlobal = async (req, res) => {
                 for (const row of customerData) {
                     try {
                         // ✅ Required fields
-                        if (!row["First Name"] || !row["Last Name"] || !row["Email Address"] || !row["Phone Number"]) {
+                        if (!row["First Name"] || !row["Phone Number"] || !row["Project"]) {
                             customerResult.skipped++;
-                            customerResult.skippedRows.push({ row, reason: "Missing required fields" });
+                            customerResult.skippedRows.push({ row, reason: "Missing required fields (Name, Phone, Project)" });
+                            continue;
+                        }
+
+                        const project_id = projectMap[row["Project"].toString().trim().toLowerCase()];
+                        if (!project_id) {
+                            customerResult.skipped++;
+                            customerResult.skippedRows.push({ row, reason: "Project not found" });
                             continue;
                         }
 
@@ -1255,10 +1268,10 @@ exports.uploadParsedGlobal = async (req, res) => {
                             customerResult.skippedRows.push({ row, reason: "Invalid phone" });
                             continue;
                         }
-                        const existingPhone = await prisma.customers.findFirst({ where: { phone_number: phone } });
+                        const existingPhone = await prisma.customers.findFirst({ where: { phone_number: phone, project_id: BigInt(project_id) } });
                         if (existingPhone) {
                             customerResult.skipped++;
-                            customerResult.skippedRows.push({ row, reason: "Duplicate phone" });
+                            customerResult.skippedRows.push({ row, reason: "Duplicate phone within the same project" });
                             continue;
                         }
 
@@ -1356,6 +1369,7 @@ exports.uploadParsedGlobal = async (req, res) => {
                                 have_you_owned_abode: row["Have you ever owned a Abode home / property?"]?.toString().toLowerCase() === "yes",
                                 if_owned_project_name: row["If Yes, Project Name"] || null,
                                 added_by_employee_id: BigInt(employee_id),
+                                project_id: BigInt(project_id),
                             },
                         });
 
@@ -1431,7 +1445,7 @@ exports.uploadParsedGlobal = async (req, res) => {
                 console.log("ASSIGN ENTERED:", assignData)
 
                 assignData = assignData.filter(
-                    row => row["Flat No"] || row["Block"] || row["Customer Email"]
+                    row => row["Flat No"] || row["Block"] || row["Customer Phone"]
                 );
 
                 const parseDate = (val) => {
@@ -1459,9 +1473,9 @@ exports.uploadParsedGlobal = async (req, res) => {
 
 
                         // ✅ Required fields
-                        if (!row["Flat No"] || !row["Block"] || !row["Customer Email"] || !row["Project"]) {
+                        if (!row["Flat No"] || !row["Block"] || !row["Customer Phone"] || !row["Project"]) {
                             assignFlatToCustomerResult.skipped++;
-                            assignFlatToCustomerResult.skippedRows.push({ row, reason: "Missing one of the required fields - Project, Flat, Block, Customer Email" });
+                            assignFlatToCustomerResult.skippedRows.push({ row, reason: "Missing one of the required fields - Project, Flat, Block, Customer Phone" });
                             continue;
                         }
 
@@ -1499,7 +1513,10 @@ exports.uploadParsedGlobal = async (req, res) => {
 
 
                         let existingCustomer = await prisma.customers.findFirst({
-                            where: { email: row["Customer Email"].trim() },
+                            where: {
+                                phone_number: row["Customer Phone"].toString().trim(),
+                                project_id: BigInt(project_id)
+                            },
                         });
 
                         if (!existingCustomer) {

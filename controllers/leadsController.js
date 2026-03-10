@@ -91,6 +91,7 @@ exports.AddLead = async (req, res) => {
       where: {
         phone_code,
         phone_number,
+        project_id: project_id ? BigInt(project_id) : undefined,
       },
     });
     if (existingPhone) {
@@ -782,6 +783,7 @@ exports.EditLead = async (req, res) => {
         where: {
           phone_code,
           phone_number,
+          project_id: leadExist?.project_id,
           uuid: { not: leadUuid },
         },
       });
@@ -2211,7 +2213,7 @@ exports.UploadParsedLeads = async (req, res) => {
             }
 
             const phoneExists = await prisma.leads.findFirst({
-              where: { phone_number: phone },
+              where: { phone_number: phone, project_id: projectId ? BigInt(projectId) : undefined },
             });
             if (phoneExists) {
               skipped.push({ row, reason: "Phone number already exists" });
@@ -2530,7 +2532,7 @@ exports.ConvertLeadToCustomer = async (req, res) => {
       }
     }
     const existingPhone = await prisma.customers.findFirst({
-      where: { phone_code, phone_number },
+      where: { phone_code, phone_number, project_id: project_id ? BigInt(project_id) : undefined },
     });
     if (existingPhone) {
       return res
