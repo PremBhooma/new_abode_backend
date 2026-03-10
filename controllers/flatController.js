@@ -9,6 +9,7 @@ const { exec } = require("child_process");
 const xlsx = require("xlsx");
 const dayjs = require("dayjs");
 const customParseFormat = require("dayjs/plugin/customParseFormat");
+const { v4: uuidv4 } = require('uuid');
 dayjs.extend(customParseFormat);
 const ExcelJS = require("exceljs");
 const logger = require("../helper/logger");
@@ -2725,7 +2726,6 @@ exports.uploadParsedFlats = async (req, res) => {
             }
           }
 
-          const newUuid = "CRMEMP" + Math.floor(100000000 + Math.random() * 900000000).toString();
 
           if (!row["Flat No"]) {
             throw new Error(`Flat No is empty`);
@@ -2736,20 +2736,22 @@ exports.uploadParsedFlats = async (req, res) => {
           }
 
           let blockRecord = await prisma.block.findFirst({
-            where: { block_name: row["Block"]?.trim() },
+            where: {
+              block_name: row["Block"]?.trim(),
+              project_id: projectId
+            },
           });
 
           if (!blockRecord) {
             blockRecord = await prisma.block.create({
               data: {
-                id: newUuid,
+                id: uuidv4(),
                 block_name: row["Block"]?.trim(),
                 project_id: projectId,
               },
             });
           }
 
-          const groupUuid = "ABDGO" + Math.floor(100000000 + Math.random() * 900000000).toString();
 
           let groupOwnerRecord = null;
 
@@ -2761,7 +2763,7 @@ exports.uploadParsedFlats = async (req, res) => {
             if (!groupOwnerRecord) {
               groupOwnerRecord = await prisma.groupowner.create({
                 data: {
-                  id: groupUuid,
+                  id: uuidv4(),
                   name: row["Group/Owner"].trim(),
                 },
               });
@@ -2807,7 +2809,6 @@ exports.uploadParsedFlats = async (req, res) => {
           // ✅ Create flat with relations
           const newFlat = await prisma.flat.create({
             data: {
-              id: id,
               flat_no: row["Flat No"]?.toString(),
               floor_no: row["Floor No"]?.toString(),
               block_id: blockRecord.id,
