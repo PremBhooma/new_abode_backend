@@ -330,7 +330,7 @@ exports.AddCustomer = async (req, res) => {
         holder_poa: holder_poa ? holder_poa : null,
         no_of_years_correspondence_address,
         no_of_years_city,
-        have_you_owned_abode: have_you_owned_abode === "true" ? true : false,
+        have_you_owned_abode: have_you_owned_abode === "true" || have_you_owned_abode === true ? true : false,
         if_owned_project_name,
         project_id: project_id ? project_id : null,
         added_by_employee_id: employeeId,
@@ -1019,7 +1019,7 @@ exports.UpdateCustomer = async (req, res) => {
           phone_code,
           phone_number,
           project_id: customerExist?.project_id,
-          id: { not: customerUuid },
+          id: { not: effectiveCustomerId },
         },
       });
       if (isPhoneExist) {
@@ -1031,7 +1031,7 @@ exports.UpdateCustomer = async (req, res) => {
     }
 
     const updatedCustomer = await prisma.customers.update({
-      where: { id: customerUuid },
+      where: { id: effectiveCustomerId },
       data: {
         prefixes: prefixes ? prefixes : customerExist?.prefixes,
         first_name: first_name ? first_name : customerExist?.first_name,
@@ -1101,7 +1101,7 @@ exports.UpdateCustomer = async (req, res) => {
           : customerExist?.no_of_years_city,
         have_you_owned_abode:
           have_you_owned_abode !== undefined
-            ? have_you_owned_abode === "true"
+            ? have_you_owned_abode === "true" || have_you_owned_abode === true
             : customerExist?.have_you_owned_abode,
         if_owned_project_name:
           have_you_owned_abode === "false"
@@ -1150,10 +1150,10 @@ exports.UpdateCustomer = async (req, res) => {
             ? correspondence_country
             : correspondenceAddress.country,
           state: correspondence_state
-            ? Number(correspondence_state)
+            ? correspondence_state
             : correspondenceAddress.state,
           city: correspondence_city
-            ? Number(correspondence_city)
+            ? correspondence_city
             : correspondenceAddress.city,
           address: correspondence_address || correspondenceAddress.address,
           pincode: correspondence_pincode || correspondenceAddress.pincode,
@@ -1183,9 +1183,9 @@ exports.UpdateCustomer = async (req, res) => {
             ? permanent_country
             : permanentAddress.country,
           state: permanent_state
-            ? Number(permanent_state)
+            ? permanent_state
             : permanentAddress.state,
-          city: permanent_city ? Number(permanent_city) : permanentAddress.city,
+          city: permanent_city ? permanent_city : permanentAddress.city,
           address: permanent_address || permanentAddress.address,
           pincode: permanent_pincode || permanentAddress.pincode,
           updated_at: new Date(),

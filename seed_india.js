@@ -1,79 +1,80 @@
-const { PrismaClient } = require("./generated/prisma");
-
-const prisma = new PrismaClient();
-
-const COUNTRY_ID = "26bb8003-cbb9-44f2-b87d-96d5d9c19fec";
-
-const statesWithCities = [
-    { name: 'Andhra Pradesh', iso2: 'AP', cities: ['Visakhapatnam', 'Vijayawada', 'Guntur', 'Nellore'] },
-    { name: 'Telangana', iso2: 'TS', cities: ['Hyderabad', 'Warangal', 'Nizamabad', 'Karimnagar'] },
-    { name: 'Karnataka', iso2: 'KA', cities: ['Bengaluru', 'Mysuru', 'Mangaluru', 'Hubli'] },
-    { name: 'Tamil Nadu', iso2: 'TN', cities: ['Chennai', 'Coimbatore', 'Madurai', 'Tiruchirappalli'] },
-    { name: 'Maharashtra', iso2: 'MH', cities: ['Mumbai', 'Pune', 'Nagpur', 'Nashik'] },
-    { name: 'Kerala', iso2: 'KL', cities: ['Thiruvananthapuram', 'Kochi', 'Kozhikode', 'Thrissur'] },
-    { name: 'Gujarat', iso2: 'GJ', cities: ['Ahmedabad', 'Surat', 'Vadodara', 'Rajkot'] },
-    { name: 'Rajasthan', iso2: 'RJ', cities: ['Jaipur', 'Jodhpur', 'Udaipur', 'Kota'] },
-    { name: 'Uttar Pradesh', iso2: 'UP', cities: ['Lucknow', 'Kanpur', 'Agra', 'Varanasi'] },
-    { name: 'Madhya Pradesh', iso2: 'MP', cities: ['Indore', 'Bhopal', 'Jabalpur', 'Gwalior'] },
-    { name: 'West Bengal', iso2: 'WB', cities: ['Kolkata', 'Howrah', 'Darjeeling', 'Siliguri'] },
-    { name: 'Punjab', iso2: 'PB', cities: ['Ludhiana', 'Amritsar', 'Jalandhar', 'Patiala'] },
-    { name: 'Haryana', iso2: 'HR', cities: ['Gurugram', 'Faridabad', 'Panipat', 'Ambala'] },
-    { name: 'Bihar', iso2: 'BR', cities: ['Patna', 'Gaya', 'Bhagalpur', 'Muzaffarpur'] },
-    { name: 'Odisha', iso2: 'OD', cities: ['Bhubaneswar', 'Cuttack', 'Rourkela', 'Puri'] }
-];
+const prisma = require('./utils/client');
 
 async function main() {
-    console.log('Starting seed script...');
-    let orderCounter = 1;
+    // First, let's find India
+    const india = await prisma.country.findFirst({
+        where: { name: 'India' }
+    });
 
-    for (const stateData of statesWithCities) {
-        // Check if state exists first to avoid duplicates
-        let state = await prisma.states.findFirst({
-            where: { name: stateData.name, country_id: COUNTRY_ID }
+    if (!india) {
+        console.log("India not found in country table!");
+        return;
+    }
+
+    console.log("Found India with ID:", india.id);
+
+    const statesInput = [
+        { name: 'Andhra Pradesh', cities: ['Visakhapatnam', 'Vijayawada', 'Guntur'] },
+        { name: 'Telangana', cities: ['Hyderabad', 'Warangal', 'Nizamabad'] },
+        { name: 'Karnataka', cities: ['Bengaluru', 'Mysuru', 'Hubballi'] },
+        { name: 'Tamil Nadu', cities: ['Chennai', 'Coimbatore', 'Madurai'] },
+        { name: 'Maharashtra', cities: ['Mumbai', 'Pune', 'Nagpur'] },
+        { name: 'Kerala', cities: ['Thiruvananthapuram', 'Kochi', 'Kozhikode'] },
+        { name: 'Gujarat', cities: ['Ahmedabad', 'Surat', 'Vadodara'] },
+        { name: 'Rajasthan', cities: ['Jaipur', 'Jodhpur', 'Udaipur'] },
+        { name: 'Uttar Pradesh', cities: ['Lucknow', 'Kanpur', 'Agra'] },
+        { name: 'Madhya Pradesh', cities: ['Bhopal', 'Indore', 'Gwalior'] },
+        { name: 'West Bengal', cities: ['Kolkata', 'Darjeeling', 'Howrah'] },
+        { name: 'Bihar', cities: ['Patna', 'Gaya', 'Bhagalpur'] },
+        { name: 'Punjab', cities: ['Ludhiana', 'Amritsar', 'Jalandhar'] },
+        { name: 'Haryana', cities: ['Gurugram', 'Faridabad', 'Panipat'] },
+        { name: 'Delhi', cities: ['New Delhi'] }
+    ];
+
+    for (const s of statesInput) {
+        // Upsert state
+        let stateRecord = await prisma.states.findFirst({
+            where: { name: s.name, country_id: india.id }
         });
 
-        if (!state) {
-            state = await prisma.states.create({
+        if (!stateRecord) {
+            stateRecord = await prisma.states.create({
                 data: {
-                    name: stateData.name,
-                    iso2: stateData.iso2,
-                    country_id: COUNTRY_ID,
+                    name: s.name,
+                    country_id: india.id,
                     status: 'active'
                 }
             });
-            console.log(`Created state: ${state.name} (${state.id})`);
+            console.log(`Created state: ${s.name}`);
         } else {
-            console.log(`State already exists: ${state.name}`);
+            console.log(`State exists: ${s.name}`);
         }
 
-        for (const cityName of stateData.cities) {
-            const cityExists = await prisma.cities.findFirst({
-                where: { name: cityName, state_id: state.id, country_id: COUNTRY_ID }
+        // Insert cities
+        for (const cityName of s.cities) {
+            let cityRecord = await prisma.cities.findFirst({
+                where: { name: cityName, state_id: stateRecord.id }
             });
-
-            if (!cityExists) {
+            if (!cityRecord) {
                 await prisma.cities.create({
                     data: {
                         name: cityName,
-                        state_id: state.id,
-                        country_id: COUNTRY_ID,
+                        state_id: stateRecord.id,
                         status: 'active',
                         city_meta_tags: '',
-                        order_no: orderCounter++
+                        order_no: 1
                     }
                 });
                 console.log(`  Created city: ${cityName}`);
-            } else {
-                console.log(`  City already exists: ${cityName}`);
             }
         }
     }
 
-    console.log('Seed completed successfully.');
+    console.log("Seeding complete.");
 }
 
 main()
-    .catch((e) => {
+    .catch(e => {
         console.error(e);
         process.exit(1);
     })

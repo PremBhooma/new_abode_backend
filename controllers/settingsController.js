@@ -177,9 +177,9 @@ exports.getStates = async (req, res) => {
     // console.log("Country id", country_id)
     try {
         const statesData = await prisma.states.findMany({
-            // where: {
-            //     country_id: parseInt(country_id),
-            // },
+            where: {
+                country_id: country_id,
+            },
             select: {
                 id: true,
                 name: true,
