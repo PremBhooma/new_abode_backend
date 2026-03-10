@@ -215,7 +215,7 @@ exports.getBlockslist = async (req, res) => {
         if (flat_id) {
             const flat = await prisma.flat.findUnique({
                 where: {
-                    id: BigInt(flat_id)
+                    id: flat_id
                 },
                 select: {
                     block_id: true
@@ -236,7 +236,7 @@ exports.getBlockslist = async (req, res) => {
             // Fetch all flats of that customer
             const flats = await prisma.flat.findMany({
                 where: {
-                    customer_id: BigInt(customer_id)
+                    customer_id: customer_id
                 },
                 select: {
                     block_id: true
@@ -267,7 +267,7 @@ exports.getBlockslist = async (req, res) => {
 
         const blockslist = blocks.map(block => ({
             label: block.block_name,
-            value: block.id.toString(),
+            value: block.id,
         }));
 
         return res.status(200).json({
@@ -293,7 +293,7 @@ exports.getAllEmployees = async (req, res) => {
 
         if (assignEmployee) {
             whereClause.id = {
-                notIn: [BigInt(assignEmployee)]
+                notIn: [assignEmployee]
             };
         }
 
@@ -302,7 +302,7 @@ exports.getAllEmployees = async (req, res) => {
         });
 
         const data = employees.map(employee => ({
-            value: employee.id.toString(),
+            value: employee.id,
             label: employee.name
         }));
 
@@ -366,7 +366,7 @@ exports.updateBank = async (req, res) => {
                     equals: name
                 },
                 NOT: {
-                    id: BigInt(id)
+                    id: id
                 }
             }
         });
@@ -379,7 +379,7 @@ exports.updateBank = async (req, res) => {
         }
 
         await prisma.banksList.update({
-            where: { id: BigInt(id) },
+            where: { id: id },
             data: {
                 name: name,
                 updated_at: new Date(),
@@ -435,7 +435,7 @@ exports.getAllBanks = async (req, res) => {
 
         return res.status(200).json({
             status: "success",
-            data: serializeBigInt(banksData),
+            data: banksData,
             totalBanks,
             totalPages: Math.ceil(totalBanks / limit),
             currentPage: parseInt(page),
@@ -453,7 +453,7 @@ exports.deleteBank = async (req, res) => {
     const { id } = req.body;
     try {
         await prisma.banksList.delete({
-            where: { id: BigInt(id) },
+            where: { id: id },
         });
 
         return res.status(200).json({
@@ -480,7 +480,7 @@ exports.getCurrentUserPermissions = async (req, res) => {
     try {
         const employee = await prisma.employees.findFirst({
             where: {
-                id: BigInt(id),
+                id: id,
             },
             select: {
                 role_id: true,
@@ -574,7 +574,7 @@ exports.addCouponGift = async (req, res) => {
 
             await prisma.coupongifts.create({
                 data: {
-                    project_id: BigInt(project_id),
+                    project_id: project_id,
                     name: name,
                     coupon_gift_id: coupon_gift_id,
                     coupon_gift_status: coupon_gift_status,
@@ -631,7 +631,7 @@ exports.updateCouponGift = async (req, res) => {
                         equals: name
                     },
                     NOT: {
-                        id: BigInt(id)
+                        id: id
                     }
                 }
             });
@@ -643,7 +643,7 @@ exports.updateCouponGift = async (req, res) => {
             }
 
             const couponGift = await prisma.coupongifts.findUnique({
-                where: { id: BigInt(id) }
+                where: { id: id }
             });
 
             if (!couponGift) {
@@ -677,9 +677,9 @@ exports.updateCouponGift = async (req, res) => {
             }
 
             await prisma.coupongifts.update({
-                where: { id: BigInt(id) },
+                where: { id: id },
                 data: {
-                    project_id: project_id ? BigInt(project_id) : undefined,
+                    project_id: project_id ? project_id : undefined,
                     name: name || undefined,
                     coupon_gift_id: coupon_gift_id || undefined,
                     coupon_gift_status: coupon_gift_status || undefined,
@@ -743,7 +743,7 @@ exports.getAllCouponGifts = async (req, res) => {
 
         return res.status(200).json({
             status: "success",
-            data: serializeBigInt(couponGiftsData),
+            data: couponGiftsData,
             totalCouponGifts,
             totalPages: Math.ceil(totalCouponGifts / limit),
             currentPage: parseInt(page),
@@ -761,7 +761,7 @@ exports.deleteCouponGift = async (req, res) => {
     const { id } = req.body;
     try {
         await prisma.coupongifts.delete({
-            where: { id: BigInt(id) },
+            where: { id: id },
         });
         return res.status(200).json({
             status: "success",
@@ -815,7 +815,7 @@ exports.searchSoldFlatsWithAdvance = async (req, res) => {
             select: {
                 id: true,
                 flat_no: true,
-                uuid: true,
+                id: true,
                 flat_reward: true,
                 project: {
                     select: {
@@ -856,24 +856,24 @@ exports.searchSoldFlatsWithAdvance = async (req, res) => {
                 const customerName = customer ? `${customer.first_name} ${customer.last_name}` : "Unknown";
 
                 return {
-                    id: flat.id.toString(),
+                    id: flat.id,
                     flat_no: flat.flat_no,
-                    project_id: flat.project?.id.toString(),
+                    project_id: flat.project?.id,
                     project_name: flat.project?.project_name || "N/A",
-                    customer_id: customer?.id.toString(),
+                    customer_id: customer?.id,
                     customer_name: customerName,
                     customer_phone: customer?.phone_number || "",
                     total_paid: totalPaid,
                     flat_reward: flat.flat_reward ?? false,
                     label: `${flat.flat_no} - ${flat.project?.project_name || "N/A"} - ${customerName} (Paid: ₹${totalPaid.toLocaleString()})`,
-                    value: flat.id.toString()
+                    value: flat.id
                 };
             })
             .filter(Boolean);
 
         return res.status(200).json({
             status: "success",
-            data: serializeBigInt(data),
+            data: serializedata,
         });
 
     } catch (error) {
@@ -890,7 +890,7 @@ exports.getLoggedInEmployee = async (req, res) => {
         const { id } = req.user;
 
         const employee = await prisma.employees.findUnique({
-            where: { id: BigInt(id) },
+            where: { id: id },
             select: {
                 id: true,
                 name: true,
@@ -907,7 +907,7 @@ exports.getLoggedInEmployee = async (req, res) => {
 
         return res.status(200).json({
             status: "success",
-            data: serializeBigInt(employee),
+            data: employee,
         });
 
     } catch (error) {
@@ -934,7 +934,7 @@ exports.sendRedemptionOTP = async (req, res) => {
         console.log(`\x1b[32m[REWARD REDEMPTION]\x1b[0m Customer OTP: \x1b[1m${customer_otp}\x1b[0m for ${customer_phone}`);
 
         const existingReward = await prisma.rewards.findFirst({
-            where: { flat_id: BigInt(flat_id), employee_id: BigInt(employee_id), customer_id: BigInt(customer_id) }
+            where: { flat_id: flat_id, employee_id: employee_id, customer_id: customer_id }
         });
 
         if (existingReward) {
@@ -951,10 +951,10 @@ exports.sendRedemptionOTP = async (req, res) => {
         } else {
             await prisma.rewards.create({
                 data: {
-                    flat_id: BigInt(flat_id),
-                    employee_id: BigInt(employee_id),
-                    customer_id: BigInt(customer_id),
-                    project_id: BigInt(project_id),
+                    flat_id: flat_id,
+                    employee_id: employee_id,
+                    customer_id: customer_id,
+                    project_id: project_id,
                     employee_otp,
                     customer_otp,
                     employee_otp_verified: false,
@@ -982,7 +982,7 @@ exports.resendRedemptionOTP = async (req, res) => {
         const newOtp = Math.floor(100000 + Math.random() * 900000).toString();
 
         const existingReward = await prisma.rewards.findFirst({
-            where: { flat_id: BigInt(flat_id), employee_id: BigInt(employee_id), customer_id: BigInt(customer_id) }
+            where: { flat_id: flat_id, employee_id: employee_id, customer_id: customer_id }
         });
 
         if (!existingReward) return res.status(404).json({ status: "error", message: "Reward session not found" });
@@ -1018,7 +1018,7 @@ exports.verifyRedemptionOTP = async (req, res) => {
         const { flat_id, employee_id, customer_id, employee_otp, customer_otp } = req.body;
 
         const reward = await prisma.rewards.findFirst({
-            where: { flat_id: BigInt(flat_id), employee_id: BigInt(employee_id), customer_id: BigInt(customer_id) }
+            where: { flat_id: flat_id, employee_id: employee_id, customer_id: customer_id }
         });
 
         if (!reward) return res.status(404).json({ status: "error", message: "Redemption session not found" });
@@ -1070,7 +1070,7 @@ exports.verifyRedemptionOTP = async (req, res) => {
         return res.status(200).json({
             status: "success",
             message: "Verfied successfully",
-            data: serializeBigInt(updatedReward)
+            data: updatedReward
         });
 
     } catch (error) {
@@ -1089,8 +1089,8 @@ exports.getRewardStatus = async (req, res) => {
 
         const reward = await prisma.rewards.findFirst({
             where: {
-                flat_id: BigInt(flat_id),
-                customer_id: BigInt(customer_id)
+                flat_id: flat_id,
+                customer_id: customer_id
             },
             select: {
                 id: true,
@@ -1113,7 +1113,7 @@ exports.getRewardStatus = async (req, res) => {
 
         return res.status(200).json({
             status: "success",
-            data: serializeBigInt(reward)
+            data: reward
         });
 
     } catch (error) {
@@ -1131,7 +1131,7 @@ exports.updateRewardStep = async (req, res) => {
         }
 
         const updatedReward = await prisma.rewards.update({
-            where: { id: BigInt(reward_id) },
+            where: { id: reward_id },
             data: {
                 rewards_step: step,
                 updated_at: new Date()
@@ -1141,7 +1141,7 @@ exports.updateRewardStep = async (req, res) => {
         return res.status(200).json({
             status: "success",
             message: "Reward step updated",
-            data: serializeBigInt(updatedReward)
+            data: updatedReward
         });
 
     } catch (error) {
@@ -1196,7 +1196,7 @@ exports.getRewardRecords = async (req, res) => {
 
         return res.status(200).json({
             status: "success",
-            records: serializeBigInt(records),
+            records: records,
             totalRecords,
             totalPages: Math.ceil(totalRecords / take),
             currentPage: parseInt(page)
@@ -1217,7 +1217,7 @@ exports.updateRewardReceivedStatus = async (req, res) => {
         }
 
         const updatedReward = await prisma.rewards.update({
-            where: { id: BigInt(reward_id) },
+            where: { id: reward_id },
             data: {
                 received_reward: Boolean(received_reward),
                 received_reward_date: Boolean(received_reward) ? new Date() : null,
@@ -1228,7 +1228,7 @@ exports.updateRewardReceivedStatus = async (req, res) => {
         return res.status(200).json({
             status: "success",
             message: "Reward received status updated",
-            data: serializeBigInt(updatedReward)
+            data: updatedReward
         });
 
     } catch (error) {

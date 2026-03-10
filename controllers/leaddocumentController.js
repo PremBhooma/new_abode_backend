@@ -24,7 +24,7 @@ function getFileIconType(fileType) {
 const deleteFolderRecursively = async (prismaInstance, folderId) => {
   // Find all direct children of the folder
   const childFolders = await prismaInstance.leadfilemanager.findMany({
-    where: { parent_id: parseInt(folderId) },
+    where: { parent_id: folderId },
   });
 
   // Recursively delete child folders/files
@@ -35,7 +35,7 @@ const deleteFolderRecursively = async (prismaInstance, folderId) => {
 
   // After all child folders/files are deleted, delete the current folder
   await prismaInstance.leadfilemanager.delete({
-    where: { id: parseInt(folderId) },
+    where: { id: folderId },
   });
 };
 
@@ -53,7 +53,7 @@ exports.createFolder = async (req, res) => {
   try {
     const leaddetails = await prisma.leads.findFirst({
       where: {
-        uuid: lead_uuid,
+        id: lead_uuid,
       },
     });
 
@@ -82,7 +82,7 @@ exports.createFolder = async (req, res) => {
 
     if (currentFolderUuid) {
       parentFolder = await prisma.leadsfilemanager.findUnique({
-        where: { uuid: currentFolderUuid }, // Check by UUID first
+        where: { id: currentFolderUuid }, // Check by UUID first
       });
 
       if (!parentFolder) {
@@ -128,7 +128,7 @@ exports.createFolder = async (req, res) => {
     // Insert the folder into the database
     await prisma.leadsfilemanager.create({
       data: {
-        uuid: folderUid,
+        id: folderUid,
         name: folderName,
         file_icon_type: fileIconType,
         file_type: "folder",
@@ -146,7 +146,7 @@ exports.createFolder = async (req, res) => {
     await prisma.leadsactivities.create({
       data: {
         lead_id: leaddetails.id,
-        employee_id: parseInt(employee_id),
+        employee_id: employee_id,
         ca_message: `Folder "${folderName}" was created in file manager`,
         employee_short_name: "C", // Consider fetching from employee data
         color_code: "green", // Using green for creation
@@ -171,7 +171,7 @@ exports.getDocuments = async (req, res) => {
   try {
     const leaddetails = await prisma.leads.findFirst({
       where: {
-        uuid: lead_uuid,
+        id: lead_uuid,
       },
     });
 
@@ -194,8 +194,8 @@ exports.getDocuments = async (req, res) => {
     });
 
     const documentsdata = documents.map((doc) => ({
-      id: doc.id.toString(),
-      uuid: doc.uuid,
+      id: doc.id,
+      id: doc.id,
       name: doc.name,
       file_type: doc.file_type,
       file_icon_type: doc.file_icon_type,
@@ -212,7 +212,7 @@ exports.getDocuments = async (req, res) => {
       // Fetch the current folder's parent ID only if currentFolderId is defined and valid
       const currentFolderdocuments = await prisma.leadsfilemanager.findFirst({
         where: {
-          id: BigInt(currentFolderId), // Convert to BigInt safely
+          id: currentFolderId, // Convert to BigInt safely
         },
       });
       superparent = currentFolderdocuments?.parent_id || null;
@@ -240,7 +240,7 @@ exports.deleteFolder = async (req, res) => {
   try {
     // Find the folder in the database
     const folder = await prisma.leadsfilemanager.findUnique({
-      where: { id: parseInt(folder_id) },
+      where: { id: folder_id },
     });
 
     if (!folder) {
@@ -311,7 +311,7 @@ exports.uploadFile = async (req, res) => {
     // Retrieve the uploaded files and additional fields
     const uploadedFiles = files.uploadfile; // The field name from the FormData
     const folderPath = fields.folderPath[0];
-    const lead_uuid = fields.lead_uuid[0];
+    const lead_uuid = fields.id[0];
     const currentFolderId = fields.currentFolderId[0];
     const fileType = fields.file_type[0];
     const user_id = fields.user_id[0];
@@ -319,7 +319,7 @@ exports.uploadFile = async (req, res) => {
 
     const leaddetails = await prisma.leads.findFirst({
       where: {
-        uuid: lead_uuid,
+        id: lead_uuid,
       },
     });
 
@@ -369,14 +369,14 @@ exports.uploadFile = async (req, res) => {
       await prisma.leadsfilemanager.create({
         data: {
           name: originalFilename,
-          uuid: fileUid,
+          id: fileUid,
           file_type: new_file_type,
           file_url: `${process.env.API_URL}/uploads/leads/${lead_uuid}/${folderPath}/${newFilename}`,
           // file_icon_type: fileIconType,
           file_path: `${folderPath}/${newFilename}`,
-          parent_id: currentFolderId && !isNaN(currentFolderId) ? BigInt(currentFolderId) : null,
+          parent_id: currentFolderId ? currentFolderId : null,
           lead_id: leaddetails?.id,
-          added_by: parseInt(user_id),
+          added_by: user_id,
           created_at: new Date(),
           updated_at: new Date(),
         },
@@ -385,7 +385,7 @@ exports.uploadFile = async (req, res) => {
       await prisma.leadsactivities.create({
         data: {
           lead_id: leaddetails.id,
-          employee_id: parseInt(employee_id),
+          employee_id: employee_id,
           ca_message: `File "${originalFilename}" was uploaded to file manager`,
           employee_short_name: "C", // Consider fetching from employee data
           color_code: "green", // Using green for creation
@@ -421,7 +421,7 @@ exports.deleteFile = async (req, res) => {
     // Find the file in the database
     const file = await prisma.leadsfilemanager.findUnique({
       where: {
-        id: parseInt(file_id),
+        id: file_id,
       },
     });
 
@@ -464,15 +464,15 @@ exports.deleteFile = async (req, res) => {
     // Remove the file entry from the database
     await prisma.leadsfilemanager.delete({
       where: {
-        id: parseInt(file_id),
+        id: file_id,
       },
     });
 
     // Track file deletion activity
     await prisma.leadsactivities.create({
       data: {
-        lead_id: BigInt(leadId),
-        employee_id: parseInt(employee_id),
+        lead_id: leadId,
+        employee_id: employee_id,
         ca_message: `File "${fileName}" was deleted from file manager`,
         employee_short_name: "C", // Consider fetching from employee data
         color_code: "red", // Using red for deletion
@@ -506,7 +506,7 @@ exports.syncFileSystemWithDB = async (req, res) => {
   try {
     // Get lead details
     const lead = await prisma.leads.findFirst({
-      where: { uuid: lead_uuid },
+      where: { id: lead_uuid },
     });
 
     if (!lead) {
@@ -521,7 +521,7 @@ exports.syncFileSystemWithDB = async (req, res) => {
       where: { lead_id: lead.id },
       select: {
         id: true,
-        uuid: true,
+        id: true,
         name: true,
         file_path: true,
         file_type: true,
@@ -571,7 +571,7 @@ exports.syncFileSystemWithDB = async (req, res) => {
           // Create new DB entry
           const newEntry = await prisma.leadsfilemanager.create({
             data: {
-              uuid: fileUid,
+              id: fileUid,
               name: file.name,
               file_icon_type: getFileIconType(fileType),
               file_type: isDirectory ? "folder" : fileType,
@@ -580,7 +580,7 @@ exports.syncFileSystemWithDB = async (req, res) => {
               file_url: `${process.env.API_URL}/uploads/leads/${lead_uuid}/${relativePath}`,
               parent_id: parentId,
               lead_id: lead.id,
-              added_by: parseInt(employee_id),
+              added_by: employee_id,
               created_at: new Date(),
               updated_at: new Date(),
             },
@@ -597,7 +597,7 @@ exports.syncFileSystemWithDB = async (req, res) => {
           await prisma.leadsactivities.create({
             data: {
               lead_id: lead.id,
-              employee_id: parseInt(employee_id),
+              employee_id: employee_id,
               ca_message: `File system sync: ${isDirectory ? "Folder" : "File"} "${file.name}" was added to database`,
               employee_short_name: "S", // 'S' for System
               color_code: "blue", // Using blue for sync operations

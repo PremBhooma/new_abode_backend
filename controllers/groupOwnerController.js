@@ -24,7 +24,6 @@ exports.getGroupOwner = async (req, res) => {
             where: searchCondition,
             select: {
                 id: true,
-                uuid: true,
                 name: true,
                 isDefault: true,
             },
@@ -41,8 +40,7 @@ exports.getGroupOwner = async (req, res) => {
 
 
         const groupOwnerDetails = groupOwnerData.map((ele) => ({
-            id: ele?.id?.toString(),
-            uuid: ele?.uuid,
+            id: ele?.id,
             name: ele?.name,
             isDefault: ele?.isDefault,
         }));
@@ -81,11 +79,10 @@ exports.addGroupOwner = async (req, res) => {
             });
         }
 
-        const uuid = "ABDGO" + Math.floor(100000000 + Math.random() * 900000000).toString();
+        // REMOVED: // REMOVED: // REMOVED: const uuid = "ABDGO" + Math.floor(100000000 + Math.random() * 900000000).toString();
 
         await prisma.groupowner.create({
             data: {
-                uuid: uuid,
                 name: group_owner,
                 isDefault: isDefault === true ? true : false,
             },
@@ -131,11 +128,11 @@ exports.getListGroupOwners = async (req, res) => {
 }
 
 exports.updateGroupOwner = async (req, res) => {
-    const { group_owner, isDefault, uuid } = req.body;
+    const { group_owner, isDefault, id } = req.body;
 
     try {
         const existingGroupOwner = await prisma.groupowner.findFirst({
-            where: { uuid },
+            where: { id },
         });
 
         if (!existingGroupOwner) {
@@ -152,7 +149,7 @@ exports.updateGroupOwner = async (req, res) => {
                         equals: group_owner,
                     },
                     NOT: {
-                        uuid: uuid,
+                        id: existingGroupOwner.id,
                     },
                 },
             });
@@ -166,7 +163,7 @@ exports.updateGroupOwner = async (req, res) => {
         }
 
         await prisma.groupowner.update({
-            where: { uuid },
+            where: { id },
             data: {
                 name: group_owner ? group_owner : existingGroupOwner.name,
                 isDefault: isDefault === true ? true : false,
@@ -199,7 +196,7 @@ exports.deleteGroupOwner = async (req, res) => {
 
         const existingGroupOwner = await prisma.groupowner.findUnique({
             where: {
-                id: parseInt(groupOwnerId)
+                id: groupOwnerId
             }
         });
 
@@ -212,7 +209,7 @@ exports.deleteGroupOwner = async (req, res) => {
 
         const deletedGroupOwner = await prisma.groupowner.delete({
             where: {
-                id: parseInt(groupOwnerId)
+                id: groupOwnerId
             }
         });
 
@@ -247,7 +244,7 @@ exports.getAllGroupOwnersNames = async (req, res) => {
 
         const groupOwnersNames = groupList.map(ele => ({
             name: ele.name,
-            id: ele.id.toString(),
+            id: ele.id,
         }));
 
         return res.status(200).json({

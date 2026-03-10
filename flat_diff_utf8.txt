@@ -1,0 +1,1253 @@
+﻿diff --git a/controllers/flatController.js b/controllers/flatController.js
+index 66d8510..f23623c 100644
+--- a/controllers/flatController.js
++++ b/controllers/flatController.js
+@@ -108,7 +108,7 @@ module.exports.AddFlat = async (req, res) => {
+     let project;
+     if (project_uuid) {
+       project = await prisma.project.findUnique({
+-        where: { uuid: project_uuid },
++        where: { id: project_uuid },
+       });
+     } else {
+       project = await prisma.project.findFirst({
+@@ -126,7 +126,7 @@ module.exports.AddFlat = async (req, res) => {
+     const existingFlat = await prisma.flat.findFirst({
+       where: {
+         flat_no: flatNo,
+-        block_id: block ? BigInt(block) : null,
++        block_id: block ? block : null,
+         project_id: project.id,
+       },
+     });
+@@ -138,14 +138,14 @@ module.exports.AddFlat = async (req, res) => {
+       });
+     }
+ 
+-    const uuid = "ABODE" + Math.floor(100000000 + Math.random() * 900000000).toString();
++    // REMOVED: const uuid = "ABODE" + Math.floor(100000000 + Math.random() * 900000000).toString();
+ 
+     const flat = await prisma.flat.create({
+       data: {
+-        uuid: uuid,
++        id: id,
+         flat_no: flatNo,
+         project_id: project.id,
+-        block_id: block ? BigInt(block) : null,
++        block_id: block ? block : null,
+         floor_no: floorNo || null,
+         square_feet: parseFloat(squareFeet) || null,
+         type: flatType || null,
+@@ -161,20 +161,20 @@ module.exports.AddFlat = async (req, res) => {
+         facing: facing || null,
+         parking: parking ? parseFloat(parking) : null,
+         udl: udlNo || null,
+-        group_owner_id: group_owner ? BigInt(group_owner) : null, // Γ£à direct FK
++        group_owner_id: group_owner ? group_owner : null, // Γ£à direct FK
+         corner: corner === "true" || corner === true,
+         mortgage: mortgage === "true" || mortgage === true,
+         flat_reward: flat_reward === "true" || flat_reward === true,
+         deed_number: deedNo || null,
+         // floor_rise: (floorRise === "true" || floorRise === true) ? true : false,
+         google_map_link: google_map_link || null,
+-        added_by_employee_id: BigInt(employee_id),
++        added_by_employee_id: employee_id,
+       },
+     });
+ 
+     await prisma.taskactivities.create({
+       data: {
+-        employee_id: BigInt(employee_id),
++        employee_id: employee_id,
+         flat_id: flat.id,
+         ta_message: `${flatNo} Flat Added`,
+       },
+@@ -302,7 +302,7 @@ module.exports.GetAllFlats = async (req, res) => {
+       },
+       select: {
+         id: true, // Needed for re-ordering
+-        uuid: true,
++        id: true,
+         flat_no: true,
+         project: {
+           select: {
+@@ -325,7 +325,7 @@ module.exports.GetAllFlats = async (req, res) => {
+         mortgage: true,
+         customer: {
+           select: {
+-            uuid: true,
++            id: true,
+             profile_pic_url: true,
+             prefixes: true,
+             first_name: true,
+@@ -341,7 +341,7 @@ module.exports.GetAllFlats = async (req, res) => {
+ 
+     // 5. Re-order to match the sorted IDs
+     // Create a map for quick lookup. Note: keys in Map are strict, convert BigInt to string if needed or just use the value.
+-    const flatMap = new Map(pagedFlatsUnsorted.map((f) => [f.id.toString(), f]));
++    const flatMap = new Map(pagedFlatsUnsorted.map((f) => [f.id, f]));
+     const flats = pagedFlatIds.map((id) => flatMap.get(id.toString())).filter(Boolean);
+ 
+     const pageFlatsCount = flats.length;
+@@ -349,7 +349,7 @@ module.exports.GetAllFlats = async (req, res) => {
+     // Map flat data for response
+     const flatDetails = flats.map((flat) => ({
+       id: flat?.id,
+-      uuid: flat?.uuid,
++      id: flat?.uuid,
+       flat_no: flat?.flat_no,
+       project_name: flat?.project?.project_name,
+       block: flat?.block,
+@@ -366,7 +366,7 @@ module.exports.GetAllFlats = async (req, res) => {
+       mortgage: flat?.mortgage,
+       customer: flat?.customer ? `${flat?.customer?.prefixes || ""} ${flat?.customer?.first_name} ${flat?.customer?.last_name || ""}`.trim() : "N/A",
+       customer_details: {
+-        uuid: flat?.customer?.uuid,
++        id: flat?.customer?.uuid,
+         profile_pic_url: flat?.customer?.profile_pic_url,
+         prefixes: flat?.customer?.prefixes,
+         first_name: flat?.customer?.first_name,
+@@ -380,7 +380,7 @@ module.exports.GetAllFlats = async (req, res) => {
+       status: "success",
+       message: "Flats fetched successfully",
+       totalFlats,
+-      flats: serializeBigInt(flatDetails),
++      flats: serializeflatDetails,
+       totalPages: Math.ceil(totalFlats / limitInt),
+       pageFlatsCount,
+     });
+@@ -394,8 +394,8 @@ module.exports.GetAllFlats = async (req, res) => {
+   }
+ };
+ 
+-module.exports.GetFlatByUUID = async (req, res) => {
+-  const { uuid } = req.params;
++module.exports.GetFlatById = async (req, res) => {
++  const { id } = req.params;
+ 
+   try {
+     if (!uuid) {
+@@ -406,7 +406,7 @@ module.exports.GetFlatByUUID = async (req, res) => {
+     }
+ 
+     const flat = await prisma.flat.findUnique({
+-      where: { uuid: uuid },
++      where: { id: uuid },
+       include: {
+         block: true,
+         customer: true,
+@@ -436,7 +436,7 @@ module.exports.GetFlatByUUID = async (req, res) => {
+       include: {
+         customer: {
+           select: {
+-            uuid: true,
++            id: true,
+             profile_pic_url: true,
+             prefixes: true,
+             first_name: true,
+@@ -547,13 +547,13 @@ module.exports.GetFlatByUUID = async (req, res) => {
+     return res.status(200).json({
+       status: "success",
+       message: "Flat fetched successfully",
+-      flat: serializeBigInt(flat),
+-      getCustomerFlat: serializeBigInt(getCustomerFlat),
++      flat: serializeflat,
++      getCustomerFlat: serializegetCustomerFlat,
+       canAssignFlat,
+       paymentSummary
+     });
+   } catch (error) {
+-    logger.error(`Get Flat By UUID Error: ${error.message}, File: flatController-GetFlatByUUID`);
++    logger.error(`Get Flat By UUID Error: ${error.message}, File: flatController-GetFlatById`);
+     return res.status(500).json({
+       status: "error",
+       message: "Failed to fetch flat",
+@@ -571,369 +571,6 @@ module.exports.UpdateFlat = async (req, res) => {
+   try {
+     if (!uuid) {
+       return res.status(400).json({
+-        status: "error",
+-        message: "UUID is required",
+-      });
+-    }
+-
+-    const existingFlat = await prisma.flat.findUnique({
+-      where: {
+-        uuid: uuid,
+-      },
+-    });
+-
+-    if (!existingFlat) {
+-      return res.status(200).json({
+-        status: "error",
+-        message: "Flat not found",
+-      });
+-    }
+-
+-    let project;
+-    if (project_uuid) {
+-      project = await prisma.project.findUnique({
+-        where: { uuid: project_uuid },
+-      });
+-
+-      if (!project) {
+-        return res.status(200).json({
+-          status: "error",
+-          message: "Project not found",
+-        });
+-      }
+-    } else {
+-      project = await prisma.project.findUnique({
+-        where: { id: existingFlat.project_id },
+-      });
+-    }
+-
+-    const duplicateFlat = await prisma.flat.findFirst({
+-      where: {
+-        flat_no: flatNo,
+-        block_id: parseInt(block),
+-        project_id: project ? project.id : existingFlat.project_id,
+-        NOT: {
+-          uuid: uuid,
+-        },
+-      },
+-    });
+-
+-    if (duplicateFlat) {
+-      return res.status(200).json({
+-        status: "error",
+-        message: `Flat already exists in the selected block.`,
+-      });
+-    }
+-
+-
+-
+-    const changes = [];
+-    const compareAndTrack = (fieldName, newValue, oldValue) => {
+-      if (newValue !== undefined && newValue != oldValue) {
+-        const emptyValue = newValue === null && "empty";
+-        changes.push(`The ${fieldName} changed from ${oldValue === null ? 0 : oldValue} to ${newValue || emptyValue}`);
+-        return newValue;
+-      }
+-      return oldValue;
+-    };
+-
+-    const customerFlatDetails = await prisma.customerflat.findFirst({
+-      where: { flat_id: existingFlat?.id },
+-    });
+-
+-    if (customerFlatDetails && (floorNo !== undefined || facing !== undefined || corner !== undefined)) {
+-      const updateData = {};
+-      const saleableArea = parseFloat(customerFlatDetails.saleable_area_sq_ft || 0);
+-
+-      const floorRisePrice = parseFloat(project?.project_six_floor_onwards_price || 0);
+-      const eastFacingPrice = parseFloat(project?.project_east_price || 0);
+-      const cornerPrice = parseFloat(project?.project_corner_price || 0);
+-
+-      // Floor Rise
+-      if (floorNo >= 5) {
+-        const floorsToCharge = floorNo - 5 + 1;
+-        const floorRisePerSqFt = floorsToCharge * floorRisePrice;
+-        updateData.floor_rise_per_sq_ft = compareAndTrack(
+-          "Floor Rise Per Sqft",
+-          floorRisePerSqFt,
+-          customerFlatDetails.floor_rise_per_sq_ft
+-        );
+-        updateData.total_floor_rise = compareAndTrack(
+-          "Total Floor Rise",
+-          floorRisePerSqFt * saleableArea,
+-          customerFlatDetails.total_floor_rise
+-        );
+-      } else if (floorNo < 5) {
+-        updateData.floor_rise_per_sq_ft = compareAndTrack(
+-          "Floor Rise Per Sqft",
+-          null,
+-          customerFlatDetails.floor_rise_per_sq_ft
+-        );
+-        updateData.total_floor_rise = compareAndTrack(
+-          "Total Floor Rise",
+-          null,
+-          customerFlatDetails.total_floor_rise
+-        );
+-      }
+-
+-      // Facing (East)
+-      if (facing) {
+-        if (facing === "East") {
+-          updateData.east_facing_per_sq_ft = compareAndTrack(
+-            "East Facing Per Sqft",
+-            eastFacingPrice,
+-            customerFlatDetails.east_facing_per_sq_ft
+-          );
+-          updateData.total_east_facing = compareAndTrack(
+-            "Total East Facing",
+-            eastFacingPrice * saleableArea,
+-            customerFlatDetails.total_east_facing
+-          );
+-        } else {
+-          updateData.east_facing_per_sq_ft = compareAndTrack(
+-            "East Facing Per Sqft",
+-            null,
+-            customerFlatDetails.east_facing_per_sq_ft
+-          );
+-          updateData.total_east_facing = compareAndTrack(
+-            "Total East Facing",
+-            null,
+-            customerFlatDetails.total_east_facing
+-          );
+-        }
+-      }
+-
+-      // Corner
+-      if (corner !== undefined) {
+-        if (corner === "true" || corner === true || corner === "Yes") {
+-          updateData.corner_per_sq_ft = compareAndTrack(
+-            "Corner Per Sqft",
+-            cornerPrice,
+-            customerFlatDetails.corner_per_sq_ft
+-          );
+-          updateData.total_corner = compareAndTrack(
+-            "Total Corner",
+-            cornerPrice * saleableArea,
+-            customerFlatDetails.total_corner
+-          );
+-        } else {
+-          updateData.corner_per_sq_ft = compareAndTrack(
+-            "Corner Per Sqft",
+-            null,
+-            customerFlatDetails.corner_per_sq_ft
+-          );
+-          updateData.total_corner = compareAndTrack(
+-            "Total Corner",
+-            null,
+-            customerFlatDetails.total_corner
+-          );
+-        }
+-      }
+-
+-      // === Recalculate dependent totals ===
+-      if (
+-        updateData.total_floor_rise !== undefined ||
+-        updateData.total_east_facing !== undefined ||
+-        updateData.total_corner !== undefined
+-      ) {
+-        const baseCost = parseFloat(customerFlatDetails.base_cost_unit || 0);
+-        const amenities = parseFloat(customerFlatDetails.amenities || 0);
+-
+-        const totalFloorRise =
+-          updateData.total_floor_rise !== undefined
+-            ? updateData.total_floor_rise
+-            : customerFlatDetails.total_floor_rise || 0;
+-
+-        const totalEastFacing =
+-          updateData.total_east_facing !== undefined
+-            ? updateData.total_east_facing
+-            : customerFlatDetails.total_east_facing || 0;
+-
+-        const totalCorner =
+-          updateData.total_corner !== undefined
+-            ? updateData.total_corner
+-            : customerFlatDetails.total_corner || 0;
+-
+-        const newTotalCost =
+-          baseCost + amenities + (totalFloorRise || 0) + (totalEastFacing || 0) + (totalCorner || 0);
+-
+-        updateData.toatlcostofuint = compareAndTrack(
+-          "Total Cost of Unit",
+-          newTotalCost,
+-          customerFlatDetails.toatlcostofuint
+-        );
+-
+-        const newGst = (newTotalCost * 0.05).toFixed(2);
+-        updateData.gst = compareAndTrack("GST", parseFloat(newGst), customerFlatDetails.gst);
+-
+-        const newCostWithTax = newTotalCost + parseFloat(newGst);
+-        updateData.costofunitwithtax = compareAndTrack(
+-          "Cost of Unit With Tax",
+-          newCostWithTax,
+-          customerFlatDetails.costofunitwithtax
+-        );
+-
+-        const newRegCharge = newTotalCost * 0.076 + 1050;
+-        updateData.registrationcharge = compareAndTrack(
+-          "Registration Charge",
+-          newRegCharge,
+-          customerFlatDetails.registrationcharge
+-        );
+-
+-        const newGrandTotal = parseFloat(newTotalCost) + parseFloat(newGst) + parseFloat(newRegCharge) + parseFloat(customerFlatDetails?.maintenancecharge) + parseFloat(customerFlatDetails?.documentaionfee) + parseFloat(customerFlatDetails?.corpusfund) + parseFloat(customerFlatDetails?.manjeera_connection_charge || 0) + parseFloat(customerFlatDetails?.manjeera_meter_charge || 0)
+-        updateData.grand_total = compareAndTrack(
+-          "Grand Total",
+-          newGrandTotal,
+-          customerFlatDetails.grand_total
+-        );
+-      }
+-
+-
+-      // Perform update if changes exist
+-      if (Object.keys(updateData).length > 0) {
+-        await prisma.customerflat.updateMany({
+-          where: { flat_id: existingFlat?.id },
+-          data: updateData,
+-        });
+-      }
+-
+-      // Track changes log
+-      if (changes?.length > 0) {
+-        await prisma.customerflatupdateactivities.create({
+-          data: {
+-            employee_id: BigInt(employee_id),
+-            customerflat_id: BigInt(customerFlatDetails?.id),
+-            message: changes.map((c) => `ΓÇó ${c}`).join("\n"),
+-          },
+-        });
+-      }
+-    }
+-
+-    const flat = await prisma.flat.update({
+-      where: { uuid: uuid },
+-      data: {
+-        flat_no: flatNo,
+-
+-        project_id: project ? project.id : existingFlat?.project_id,
+-        block_id: block ? BigInt(block) : existingFlat?.block_id,
+-        floor_no: floorNo,
+-        square_feet: parseFloat(squareFeet),
+-        type: flatType,
+-        facing,
+-        parking: parseFloat(parking),
+-        udl: udlNo,
+-        bedrooms: parseInt(bedrooms),
+-        bathrooms: parseInt(bathrooms),
+-        balconies: parseInt(balconies),
+-        furnished_status: furnishingStatus,
+-        group_owner_id: group_owner ? BigInt(group_owner) : existingFlat?.group_owner_id,
+-        description,
+-        mortgage: mortgage === "true" || mortgage === true,
+-        east_face: east_face,
+-        west_face: west_face,
+-        north_face: north_face,
+-        south_face: south_face,
+-        corner: corner === "true" || corner === true,
+-        flat_reward: flat_reward === "true" || flat_reward === true,
+-        deed_number: deedNo,
+-        // floor_rise: floorRise === "true" ? true : false,
+-        google_map_link: google_map_link,
+-        updated_at: new Date(),
+-      },
+-    });
+-
+-    const task_activities = await prisma.taskactivities.create({
+-      data: {
+-        employee_id: BigInt(employee_id),
+-        flat_id: flat.id,
+-        ta_message: "Flat Edited",
+-      },
+-    });
+-
+-    return res.status(200).json({
+-      status: "success",
+-      message: "Flat updated successfully",
+-    });
+-  } catch (error) {
+-    logger.error(`Update Flat Error: ${error.message}, File: flatController-UpdateFlat`);
+-    return res.status(500).json({
+-      status: "error",
+-      message: "Failed to update flat",
+-      error: error.message,
+-    });
+-  }
+-};
+-
+-// module.exports.DeleteFlat = async (req, res) => {
+-//   const { uuid, employeeId } = req.body;
+-
+-//   try {
+-//     if (!uuid) {
+-//       return res.status(200).json({
+-//         status: "error",
+-//         message: "UUID is required",
+-//       });
+-//     }
+-
+-//     const flat = await prisma.flat.findUnique({
+-//       where: {
+-//         uuid: uuid,
+-//       },
+-//     });
+-
+-//     if (!flat) {
+-//       return res.status(200).json({
+-//         status: "error",
+-//         message: "Flat not found",
+-//       });
+-//     }
+-
+-//     const task_activities = await prisma.taskactivities.create({
+-//       data: {
+-//         employee_id: BigInt(employeeId),
+-//         flat_id: flat.id,
+-//         ta_message: "Flat Deleted",
+-//       },
+-//     });
+-
+-//     await prisma.flat.delete({
+-//       where: { uuid },
+-//     });
+-
+-//     return res.status(200).json({
+-//       status: "success",
+-//       message: "Flat deleted successfully",
+-//     });
+-//   } catch (error) {
+-//     logger.error(`Delete Flat Error: ${error.message}, File: flatController-DeleteFlat`);
+-//     return res.status(500).json({
+-//       status: "error",
+-//       message: "Failed to delete flat",
+-//       error: error.message,
+-//     });
+-//   }
+-// };
+-
+-module.exports.DeleteFlat = async (req, res) => {
+-  const { uuid, employeeId } = req.body;
+-
+-  try {
+-    if (!uuid) {
+-      return res.status(200).json({
+-        status: "error",
+-        message: "UUID is required",
+-      });
+-    }
+-
+-    const flat = await prisma.flat.findUnique({
+-      where: {
+-        uuid: uuid,
+-      },
+-    });
+-
+-    if (!flat) {
+-      return res.status(200).json({
+-        status: "error",
+         message: "Flat not found",
+       });
+     }
+@@ -957,35 +594,35 @@ module.exports.DeleteFlat = async (req, res) => {
+     await deleteFolder(flatsFolder);
+ 
+     await prisma.taskactivities.deleteMany({
+-      where: { flat_id: BigInt(flat?.id) },
++      where: { flat_id: flat?.id },
+     });
+ 
+     await prisma.flatfilemanager.deleteMany({
+-      where: { flat_id: BigInt(flat?.id) },
++      where: { flat_id: flat?.id },
+     });
+ 
+     await prisma.flatnotes.deleteMany({
+-      where: { flat_id: BigInt(flat?.id) },
++      where: { flat_id: flat?.id },
+     });
+ 
+     await prisma.payments.deleteMany({
+-      where: { flat_id: BigInt(flat?.id) },
++      where: { flat_id: flat?.id },
+     });
+ 
+     await prisma.ageingrecord.deleteMany({
+-      where: { flat_id: BigInt(flat?.id) },
++      where: { flat_id: flat?.id },
+     });
+ 
+     await prisma.refundageingrecord.deleteMany({
+-      where: { flat_id: BigInt(flat?.id) },
++      where: { flat_id: flat?.id },
+     });
+ 
+     await prisma.rewards.deleteMany({
+-      where: { flat_id: BigInt(flat?.id) },
++      where: { flat_id: flat?.id },
+     });
+ 
+     await prisma.customerflat.deleteMany({
+-      where: { flat_id: BigInt(flat?.id) },
++      where: { flat_id: flat?.id },
+     });
+ 
+     await prisma.flat.delete({
+@@ -1019,7 +656,7 @@ module.exports.AddFlatnote = async (req, res) => {
+   try {
+     const flatnote = await prisma.flat.findFirst({
+       where: {
+-        uuid: flat_uuid,
++        id: flat_uuid,
+       },
+     });
+ 
+@@ -1033,7 +670,7 @@ module.exports.AddFlatnote = async (req, res) => {
+ 
+     await prisma.taskactivities.create({
+       data: {
+-        employee_id: BigInt(employee_id),
++        employee_id: employee_id,
+         flat_id: flatnote.id,
+         ta_message: `Note added for flat ${flatnote.flat_no}: ${note.substring(0, 50)}...`,
+         employee_short_name: "N",
+@@ -1061,7 +698,7 @@ module.exports.GetFlatNotes = async (req, res) => {
+   try {
+     const flat = await prisma.flat.findFirst({
+       where: {
+-        uuid: flat_uuid,
++        id: flat_uuid,
+       },
+     });
+ 
+@@ -1095,12 +732,12 @@ module.exports.GetFlatNotes = async (req, res) => {
+     });
+ 
+     const serializedFlatnotes = flatnotes.map((note) => ({
+-      id: note.id.toString(),
++      id: note.id,
+       note_message: note.note_message,
+       created_at: note.created_at.toISOString(),
+       updated_at: note.updated_at ? note.updated_at.toISOString() : null,
+       user: {
+-        id: note.user.id.toString(),
++        id: note.user.id,
+         name: note.user.name,
+         profile_pic_url: note.user.profile_pic_url,
+       },
+@@ -1110,8 +747,8 @@ module.exports.GetFlatNotes = async (req, res) => {
+       status: "success",
+       message: "Notes retrieved successfully",
+       flat: {
+-        id: flat.id.toString(),
+-        uuid: flat.uuid,
++        id: flat.id,
++        id: flat.id,
+         notes: serializedFlatnotes,
+       },
+     });
+@@ -1142,8 +779,8 @@ exports.uploadFlatPicture = async (req, res) => {
+ 
+     try {
+       const flat = await prisma.flat.findFirst({
+-        where: { id: BigInt(flat_id) },
+-        select: { uuid: true, flat_img_path: true },
++        where: { id: flat_id },
++        select: { id: true, flat_img_path: true },
+       });
+ 
+       if (!flat) {
+@@ -1155,7 +792,7 @@ exports.uploadFlatPicture = async (req, res) => {
+         return res.status(400).json({ status: "error", message: "File path is missing" });
+       }
+ 
+-      const uploadDir = path.join(__dirname, "../uploads", `${flat.uuid}`);
++      const uploadDir = path.join(__dirname, "../uploads", `${flat.id}`);
+       if (!fs.existsSync(uploadDir)) {
+         fs.mkdirSync(uploadDir, { recursive: true });
+       }
+@@ -1168,10 +805,10 @@ exports.uploadFlatPicture = async (req, res) => {
+       fs.copyFileSync(tempFilePath, profilePicturePath);
+       fs.unlinkSync(tempFilePath);
+ 
+-      const profileUrl = `${process.env.API_URL}/uploads/${flat.uuid}/${profilePicture.originalFilename}`;
++      const profileUrl = `${process.env.API_URL}/uploads/${flat.id}/${profilePicture.originalFilename}`;
+ 
+       await prisma.flat.update({
+-        where: { id: BigInt(flat_id) },
++        where: { id: flat_id },
+         data: {
+           flat_img_url: profileUrl,
+           flat_img_path: profilePicturePath,
+@@ -1241,7 +878,7 @@ exports.searchFlatsForCustomer = async (req, res) => {
+               contains: flat_no?.toString(),
+             },
+           }),
+-        ...(project_id ? { project_id: BigInt(project_id) } : {}),
++        ...(project_id ? { project_id: project_id } : {}),
+         status: {
+           not: "Sold",
+         },
+@@ -1249,7 +886,7 @@ exports.searchFlatsForCustomer = async (req, res) => {
+       select: {
+         id: true,
+         flat_no: true,
+-        uuid: true,
++        id: true,
+         block: { select: { block_name: true } },
+         project: { select: { project_name: true } },
+         floor_no: true,
+@@ -1298,10 +935,10 @@ exports.searchFlatsForCustomer = async (req, res) => {
+     const flatData = flats.map((ele) => {
+       const matchedType = flatTypes.find((t) => t.value === ele?.type);
+       return {
+-        value: ele.id.toString(),
++        value: ele.id,
+         label: `Project : ${ele.project?.project_name} - Flat : ${ele.flat_no} - Floor : ${ele.floor_no} - Block : ${ele.block?.block_name}`,
+         flat_no: ele?.flat_no,
+-        uuid: ele?.uuid,
++        id: ele?.uuid,
+         block_name: ele?.block?.block_name,
+         floor_no: ele?.floor_no,
+         square_feet: ele?.square_feet,
+@@ -1322,12 +959,12 @@ exports.searchFlatsForCustomer = async (req, res) => {
+     let groupOwners = [];
+     if (hasAssignGroupOwnerPermission) {
+       groupOwners = await prisma.groupowner.findMany({
+-        select: { id: true, uuid: true, name: true, isDefault: true },
++        select: { id: true, id: true, name: true, isDefault: true },
+       });
+     } else {
+       groupOwners = await prisma.groupowner.findMany({
+         where: { isDefault: false },
+-        select: { id: true, uuid: true, name: true, isDefault: true },
++        select: { id: true, id: true, name: true, isDefault: true },
+       });
+     }
+ 
+@@ -1364,7 +1001,7 @@ exports.SearchSoldFlatsForCustomer = async (req, res) => {
+         select: {
+           id: true,
+           flat_no: true,
+-          uuid: true,
++          id: true,
+           floor_no: true,
+           square_feet: true,
+           type: true,
+@@ -1391,7 +1028,7 @@ exports.SearchSoldFlatsForCustomer = async (req, res) => {
+               customer: {
+                 select: {
+                   id: true,
+-                  uuid: true,
++                  id: true,
+                   first_name: true,
+                   last_name: true,
+                   email: true,
+@@ -1416,13 +1053,13 @@ exports.SearchSoldFlatsForCustomer = async (req, res) => {
+         const customerFlat = flat.Customerflat[0]; // assuming only one per flat
+         const customerName = customerFlat?.customer ? `${customerFlat.customer.first_name} ${customerFlat.customer.last_name}` : "Unknown Customer";
+         return {
+-          value: customerFlat?.id?.toString() || flat.id.toString(), // fallback to flat id if no customerFlat
++          value: customerFlat?.id?.toString() || flat.id, // fallback to flat id if no customerFlat
+           label: `${flat.project?.project_name || "Project"} - ${flat.flat_no} - ${customerName} `,
+           project_id: flat.project?.id?.toString(),
+           project_name: flat.project?.project_name,
+           flat_no: flat.flat_no,
+-          id: flat.id.toString(),
+-          uuid: flat.uuid,
++          id: flat.id,
++          id: flat.id,
+           block_name: flat.block?.block_name,
+           floor_no: flat.floor_no,
+           square_feet: flat.square_feet,
+@@ -1439,7 +1076,7 @@ exports.SearchSoldFlatsForCustomer = async (req, res) => {
+ 
+       return res.status(200).json({
+         status: "success",
+-        data: serializeBigInt(data),
++        data: serializedata,
+       });
+     }
+ 
+@@ -1467,7 +1104,7 @@ exports.SearchSoldFlatsForCustomer = async (req, res) => {
+       where: searchCondition,
+       select: {
+         id: true,
+-        uuid: true,
++        id: true,
+         first_name: true,
+         last_name: true,
+         email: true,
+@@ -1499,7 +1136,7 @@ exports.SearchSoldFlatsForCustomer = async (req, res) => {
+         customer: {
+           select: {
+             id: true,
+-            uuid: true,
++            id: true,
+             first_name: true,
+             last_name: true,
+             email: true,
+@@ -1512,7 +1149,7 @@ exports.SearchSoldFlatsForCustomer = async (req, res) => {
+           select: {
+             id: true,
+             flat_no: true,
+-            uuid: true,
++            id: true,
+             floor_no: true,
+             square_feet: true,
+             type: true,
+@@ -1541,11 +1178,11 @@ exports.SearchSoldFlatsForCustomer = async (req, res) => {
+     const data = customerFlats.map((entry) => {
+       const customerName = entry.customer ? `${entry.customer.first_name} ${entry.customer.last_name}` : "Unknown Customer";
+       return {
+-        value: entry.id.toString(), // customerFlat ID
++        value: entry.id, // customerFlat ID
+         label: `${entry.flat.project?.project_name || "Project"} - ${entry.flat.flat_no} - ${customerName}`,
+         flat_no: entry.flat.flat_no,
+-        id: entry.flat.id.toString(),
+-        uuid: entry.flat.uuid,
++        id: entry.flat.id,
++        id: entry.flat.id,
+         project_id: entry.flat.project?.id?.toString(),
+         project_name: entry.flat.project?.project_name,
+         block_name: entry.flat.block?.block_name,
+@@ -1564,7 +1201,7 @@ exports.SearchSoldFlatsForCustomer = async (req, res) => {
+ 
+     return res.status(200).json({
+       status: "success",
+-      data: serializeBigInt(data),
++      data: serializedata,
+     });
+   } catch (error) {
+     logger.error(`Search Sold Flats For Customer Error: ${error.message}, File: flatController-SearchSoldFlatsForCustomer`);
+@@ -1581,7 +1218,7 @@ exports.SearchSoldFlatsForCustomeruuid = async (req, res) => {
+ 
+     const customer = await prisma.customers.findFirst({
+       where: {
+-        uuid: customer_uuid,
++        id: customer_uuid,
+       },
+       select: {
+         id: true,
+@@ -1603,7 +1240,7 @@ exports.SearchSoldFlatsForCustomeruuid = async (req, res) => {
+       select: {
+         id: true,
+         flat_no: true,
+-        uuid: true,
++        id: true,
+         floor_no: true,
+         square_feet: true,
+         type: true,
+@@ -1624,7 +1261,7 @@ exports.SearchSoldFlatsForCustomeruuid = async (req, res) => {
+             customer: {
+               select: {
+                 id: true,
+-                uuid: true,
++                id: true,
+                 first_name: true,
+                 last_name: true,
+                 email: true,
+@@ -1648,11 +1285,11 @@ exports.SearchSoldFlatsForCustomeruuid = async (req, res) => {
+     const data = flatDetails.map((flat) => {
+       const customerFlat = flat.Customerflat[0];
+       return {
+-        value: customerFlat?.id?.toString() || flat.id.toString(), // fallback to flat id if no customerFlat
++        value: customerFlat?.id?.toString() || flat.id, // fallback to flat id if no customerFlat
+         label: `${flat.flat_no} - ${flat.block?.block_name || "N/A"}`,
+         flat_no: flat.flat_no,
+-        id: flat.id.toString(),
+-        uuid: flat.uuid,
++        id: flat.id,
++        id: flat.id,
+         block_name: flat.block?.block_name,
+         floor_no: flat.floor_no,
+         square_feet: flat.square_feet,
+@@ -1669,7 +1306,7 @@ exports.SearchSoldFlatsForCustomeruuid = async (req, res) => {
+ 
+     return res.status(200).json({
+       status: "success",
+-      data: serializeBigInt(data),
++      data: serializedata,
+     });
+   } catch (error) {
+     logger.error(`Search Sold Flats For Customer UUID Error: ${error.message}, File: flatController-SearchSoldFlatsForCustomerUuid`);
+@@ -1699,7 +1336,7 @@ module.exports.FlatActivities = async (req, res) => {
+     }
+ 
+     const flat = await prisma.flat.findFirst({
+-      where: { uuid: flat_uuid },
++      where: { id: flat_uuid },
+       select: { id: true },
+     });
+ 
+@@ -1711,7 +1348,7 @@ module.exports.FlatActivities = async (req, res) => {
+     }
+ 
+     const employee = await prisma.employees.findFirst({
+-      where: { uuid: employee_uuid },
++      where: { id: employee_uuid },
+       select: { id: true },
+     });
+ 
+@@ -1725,15 +1362,15 @@ module.exports.FlatActivities = async (req, res) => {
+     // Get total count for pagination
+     const totalCount = await prisma.taskactivities.count({
+       where: {
+-        flat_id: BigInt(flat.id),
+-        // employee_id: BigInt(employee.id),
++        flat_id: flat.id,
++        // employee_id: employee.id,
+       },
+     });
+ 
+     const taskactivities = await prisma.taskactivities.findMany({
+       where: {
+-        flat_id: BigInt(flat.id),
+-        // employee_id: BigInt(employee.id),
++        flat_id: flat.id,
++        // employee_id: employee.id,
+       },
+       select: {
+         id: true,
+@@ -1772,7 +1409,7 @@ module.exports.FlatActivities = async (req, res) => {
+     return res.status(200).json({
+       status: "success",
+       message: "Flat activities fetched successfully",
+-      activities: serializeBigInt(activities),
++      activities: serializeactivities,
+       totalCount,
+       hasMore: parseInt(offset) + activities.length < totalCount,
+     });
+@@ -1826,7 +1463,7 @@ module.exports.GetPaymentsByFlatId = async (req, res) => {
+     }
+ 
+     if (flat_id) {
+-      searchCondition.flat_id = parseInt(flat_id);
++      searchCondition.flat_id = flat_id;
+     }
+ 
+     if (startDate && endDate) {
+@@ -1880,7 +1517,7 @@ module.exports.GetPaymentsByFlatId = async (req, res) => {
+ 
+     const paymentdetails = payemntsList.map((payment) => ({
+       payment_id: payment?.id?.toString(),
+-      uuid: payment?.uuid,
++      id: payment?.uuid,
+       flat_number: payment?.flat?.flat_no,
+       flat_uuid: payment?.flat?.uuid,
+       block_name: payment?.flat?.block?.block_name,
+@@ -1908,7 +1545,7 @@ module.exports.GetPaymentsByFlatId = async (req, res) => {
+       status: "success",
+       message: "Payments of Flats fetched successfully",
+       totalPayments,
+-      data: serializeBigInt(paymentdetails),
++      data: serializepaymentdetails,
+       totalPages: Math.ceil(totalPayments / limitInt),
+     });
+   } catch (error) {
+@@ -1958,7 +1595,7 @@ module.exports.GetPrintPaymentsByFlatId = async (req, res) => {
+     }
+ 
+     if (flat_id) {
+-      searchCondition.flat_id = parseInt(flat_id);
++      searchCondition.flat_id = flat_id;
+     }
+ 
+     if (startDate && endDate) {
+@@ -2010,7 +1647,7 @@ module.exports.GetPrintPaymentsByFlatId = async (req, res) => {
+ 
+     const paymentdetails = payemntsList.map((payment) => ({
+       payment_id: payment?.id?.toString(),
+-      uuid: payment?.uuid,
++      id: payment?.uuid,
+       flat_number: payment?.flat?.flat_no,
+       block_name: payment?.flat?.block?.block_name,
+       customer_first_name: payment?.customer?.first_name,
+@@ -2031,7 +1668,7 @@ module.exports.GetPrintPaymentsByFlatId = async (req, res) => {
+     return res.status(200).json({
+       status: "success",
+       message: "Payments of Flats fetched successfully",
+-      allpayments: serializeBigInt(paymentdetails),
++      allpayments: serializepaymentdetails,
+     });
+   } catch (error) {
+     logger.error(`Get Payments By Flat ID Error: ${error.message}, File: flatController-GetPaymentsByFlatId`);
+@@ -2049,10 +1686,10 @@ exports.getFlatLists = async (req, res) => {
+ 
+     let whereCondition = {};
+     if (customer_id) {
+-      whereCondition.customer_id = BigInt(customer_id);
++      whereCondition.customer_id = customer_id;
+     }
+     if (block_id) {
+-      whereCondition.block_id = BigInt(block_id);
++      whereCondition.block_id = block_id;
+     }
+ 
+     const flatsList = await prisma.flat.findMany({
+@@ -2130,7 +1767,7 @@ exports.GetFlatPaymentsForExcel = async (req, res) => {
+     }
+ 
+     if (flat_id) {
+-      searchCondition.flat_id = parseInt(flat_id);
++      searchCondition.flat_id = flat_id;
+     }
+ 
+     if (startDate && endDate) {
+@@ -2161,7 +1798,7 @@ exports.GetFlatPaymentsForExcel = async (req, res) => {
+ 
+     const paymentsData = payments.map((payment) => ({
+       payment_id: payment?.id?.toString(),
+-      uuid: payment?.uuid,
++      id: payment?.uuid,
+       flat_number: payment?.flat?.flat_no,
+       customer_first_name: payment?.customer?.first_name,
+       customer_last_name: payment?.customer?.last_name,
+@@ -2179,7 +1816,7 @@ exports.GetFlatPaymentsForExcel = async (req, res) => {
+ 
+     const worksheetData = paymentsData?.map((payment, index) => ({
+       "S.No": index + 1,
+-      "Payment Ref Id": payment.uuid,
++      "Payment Ref Id": payment.id,
+       "Transaction ID": payment.transaction_id,
+       "Flat No": payment.flat_number,
+       "Customer Name": payment.customer_first_name + payment.customer_last_name,
+@@ -2363,7 +2000,7 @@ exports.GetFlatsForExcel = async (req, res) => {
+       where: searchCondition,
+ 
+       select: {
+-        uuid: true,
++        id: true,
+         flat_no: true,
+         block: true,
+         floor_no: true,
+@@ -2385,7 +2022,7 @@ exports.GetFlatsForExcel = async (req, res) => {
+         },
+         customer: {
+           select: {
+-            uuid: true,
++            id: true,
+             profile_pic_url: true,
+             prefixes: true,
+             first_name: true,
+@@ -2400,7 +2037,7 @@ exports.GetFlatsForExcel = async (req, res) => {
+     });
+ 
+     const flatDetails = flats.map((flat) => ({
+-      uuid: flat?.uuid,
++      id: flat?.uuid,
+       flat_no: flat?.flat_no,
+       project_name: flat?.project?.project_name,
+       block: flat?.block,
+@@ -2418,7 +2055,7 @@ exports.GetFlatsForExcel = async (req, res) => {
+       totalAmount: flat?.totalAmount || 0,
+       customer: flat?.customer ? `${flat?.customer?.prefixes || ""} ${flat?.customer?.first_name} ${flat?.customer?.last_name || ""}`.trim() : "N/A",
+       customer_details: {
+-        uuid: flat?.customer?.uuid,
++        id: flat?.customer?.uuid,
+         profile_pic_url: flat?.customer?.profile_pic_url,
+         prefixes: flat?.customer?.prefixes,
+         first_name: flat?.customer?.first_name,
+@@ -2433,7 +2070,7 @@ exports.GetFlatsForExcel = async (req, res) => {
+     if (customerId) {
+       customerName = await prisma.customers.findFirst({
+         where: {
+-          id: BigInt(customerId),
++          id: customerId,
+         },
+         select: {
+           prefixes: true,
+@@ -2443,10 +2080,10 @@ exports.GetFlatsForExcel = async (req, res) => {
+       });
+     }
+ 
+-    const flatsData = serializeBigInt(flatDetails);
++    const flatsData = serializeflatDetails;
+ 
+     const worksheetData = flatsData.map((flat) => ({
+-      "Ref ID": flat.uuid || "N/A",
++      "Ref ID": flat.id || "N/A",
+       "Customer Name": flat.customer || "N/A",
+       "Customer Email": flat.customer_details?.email || "N/A",
+       "Customer Phone": flat.customer_details ? `+${flat.customer_details.phone_code || ""} ${flat.customer_details.phone_number || ""}`.trim() : "N/A",
+@@ -2602,11 +2239,11 @@ exports.GetFlatsForExcel = async (req, res) => {
+ };
+ 
+ exports.getCustomerFlats = async (req, res) => {
+-  const { customer_uid } = req.query;
++  const { customer_id_ref } = req.query;
+   try {
+     const customer = await prisma.customers.findFirst({
+       where: {
+-        uuid: customer_uid,
++        id: customer_id_ref,
+       },
+     });
+ 
+@@ -2742,7 +2379,7 @@ exports.uploadParsedFlats = async (req, res) => {
+           if (!blockRecord) {
+             blockRecord = await prisma.block.create({
+               data: {
+-                uuid: newUuid,
++                id: newUuid,
+                 block_name: row["Block"]?.trim(),
+                 project_id: projectId,
+               },
+@@ -2761,7 +2398,7 @@ exports.uploadParsedFlats = async (req, res) => {
+             if (!groupOwnerRecord) {
+               groupOwnerRecord = await prisma.groupowner.create({
+                 data: {
+-                  uuid: groupUuid,
++                  id: groupUuid,
+                   name: row["Group/Owner"].trim(),
+                 },
+               });
+@@ -2801,12 +2438,12 @@ exports.uploadParsedFlats = async (req, res) => {
+             googleMapLink = null;
+           }
+ 
+-          const uuid = "ABODE" + Math.floor(100000000 + Math.random() * 900000000).toString();
++          // REMOVED: const uuid = "ABODE" + Math.floor(100000000 + Math.random() * 900000000).toString();
+ 
+           // Γ£à Create flat with relations
+           const newFlat = await prisma.flat.create({
+             data: {
+-              uuid: uuid,
++              id: id,
+               flat_no: row["Flat No"]?.toString(),
+               floor_no: row["Floor No"]?.toString(),
+               block_id: blockRecord.id,
+@@ -2831,14 +2468,14 @@ exports.uploadParsedFlats = async (req, res) => {
+               // floor_rise: floorRise,
+               group_owner_id: groupOwnerRecord ? groupOwnerRecord.id : null,
+               project_id: projectId,
+-              added_by_employee_id: BigInt(employee_id),
++              added_by_employee_id: employee_id,
+             },
+           });
+ 
+           await prisma.taskactivities.create({
+             data: {
+-              employee_id: BigInt(employee_id),
+-              flat_id: BigInt(newFlat.id),
++              employee_id: employee_id,
++              flat_id: newFlat.id,
+               ta_message: `${newFlat.flat_no} Flat Added via bulk upload`,
+             },
+           });
+@@ -2886,13 +2523,13 @@ module.exports.FlatUpdateActivities = async (req, res) => {
+     // Get total count for pagination
+     const totalCount = await prisma.customerflatupdateactivities.count({
+       where: {
+-        customerflat_id: BigInt(customerflat_id),
++        customerflat_id: customerflat_id,
+       },
+     });
+ 
+     const taskactivities = await prisma.customerflatupdateactivities.findMany({
+       where: {
+-        customerflat_id: BigInt(customerflat_id),
++        customerflat_id: customerflat_id,
+       },
+       select: {
+         id: true,
+@@ -2927,7 +2564,7 @@ module.exports.FlatUpdateActivities = async (req, res) => {
+     return res.status(200).json({
+       status: "success",
+       message: "Customer flat updated activities fetched successfully",
+-      activities: serializeBigInt(activities),
++      activities: serializeactivities,
+       totalCount,
+       hasMore: parseInt(offset) + activities.length < totalCount,
+     });
+@@ -2953,7 +2590,7 @@ module.exports.GetFlatStages = async (req, res) => {
+ 
+     const flat = await prisma.flat.findFirst({
+       where: {
+-        uuid: flat_uuid,
++        id: flat_uuid,
+       },
+       select: {
+         id: true,
+@@ -3006,7 +2643,7 @@ module.exports.GetFlatStages = async (req, res) => {
+ //     const project = await prisma.project.findFirst({});
+ //     const flatdetails = await prisma.flat.findFirst({
+ //       where: {
+-//         uuid: flatuuid,
++//         id: flatuuid,
+ //       },
+ //       include: {
+ //         customer: {
+@@ -3237,7 +2874,7 @@ module.exports.downloadSalesDeed = async (req, res) => {
+     const project = await prisma.project.findFirst({});
+     const flatdetails = await prisma.flat.findFirst({
+       where: {
+-        uuid: flatuuid,
++        id: flatuuid,
+       },
+       include: {
+         customer: {
+@@ -3465,7 +3102,7 @@ module.exports.downloadSalesDeed = async (req, res) => {
+         // Update flats table with PDF info
+         await prisma.flat.update({
+           where: {
+-            uuid: flatuuid
++            id: flatuuid
+           },
+           data: {
+             ...updateData,
+@@ -3488,7 +3125,7 @@ module.exports.downloadSalesDeed = async (req, res) => {
+       // Store DOCX info in flats table
+       await prisma.flat.update({
+         where: {
+-          uuid: flatuuid
++          id: flatuuid
+         },
+         data: updateData
+       });
+@@ -3670,7 +3307,7 @@ module.exports.downloadAgreementTemplate = async (req, res) => {
+     const project = await prisma.project.findFirst({});
+     const flatdetails = await prisma.flat.findFirst({
+       where: {
+-        uuid: flatuuid,
++        id: flatuuid,
+       },
+       include: {
+         customer: {
+@@ -3898,7 +3535,7 @@ module.exports.downloadAgreementTemplate = async (req, res) => {
+         // Update flats table with PDF info
+         await prisma.flat.update({
+           where: {
+-            uuid: flatuuid
++            id: flatuuid
+           },
+           data: {
+             ...updateData,
+@@ -3945,7 +3582,7 @@ module.exports.downloadAgreementTemplate = async (req, res) => {
+       // Store DOCX info in flats table
+       await prisma.flat.update({
+         where: {
+-          uuid: flatuuid
++          id: flatuuid
+         },
+         data: updateData
+       });
+@@ -4024,7 +3661,7 @@ module.exports.getProjectCharges = async (req, res) => {
+     }
+ 
+     const project = await prisma.project.findUnique({
+-      where: { id: BigInt(project_id) },
++      where: { id: project_id },
+       select: {
+         project_corner_price: true,
+         project_east_price: true,
+@@ -4088,7 +3725,7 @@ exports.getFlatPaymentDetails = async (req, res) => {
+     }
+ 
+     const flatDetails = await prisma.flat.findUnique({
+-      where: { id: BigInt(flat_id) },
++      where: { id: flat_id },
+       select: {
+         id: true,
+         flat_no: true,
+@@ -4131,7 +3768,7 @@ exports.getFlatPaymentDetails = async (req, res) => {
+             payment_type: true,
+             payment_method: true,
+             trasnaction_id: true,
+-            uuid: true
++            id: true
+           }
+         }
+       }
+@@ -4167,7 +3804,7 @@ exports.getFlatPaymentDetails = async (req, res) => {
+ 
+     return res.status(200).json({
+       status: "success",
+-      data: serializeBigInt(result),
++      data: serializeresult,
+     });
+ 
+   } catch (error) {

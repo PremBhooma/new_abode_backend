@@ -1,0 +1,38 @@
+﻿node.exe : Environment 
+variables loaded from .env
+At line:1 char:1
++ & "C:\Program 
+Files\nodejs/node.exe" 
+"C:\Program 
+Files\nodejs/node_mo ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo        
+      : NotSpecified: 
+(Envir    onment 
+variables loaded     from 
+.env:String) [],     
+RemoteException
+    + 
+FullyQualifiedErrorId     
+: NativeCommandError
+ 
+Prisma schema loaded from prisma\schema.prisma
+Datasource "db": MySQL database "abodedb" at "localhost:3306"
+
+Applying migration `20260310063428_bigint_to_string`
+
+The following migration(s) have been created and applied from new schema changes:
+
+prisma\migrations/
+  ΓööΓöÇ 20260310063428_bigint_to_string/
+    ΓööΓöÇ migration.sql
+
+Your database is now in sync with your schema.
+
+Running generate... (Use --skip-generate to skip the generators)
+[2K[1A[2K[GRunning generate... - Prisma Client
+[2K[1A[2K[GΓ£ö Generated Prisma Client (v6.15.0) to .\generated\prisma in 1.12s
+
+

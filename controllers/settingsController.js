@@ -187,7 +187,7 @@ exports.getStates = async (req, res) => {
         });
 
         const data = statesData.map((ele) => ({
-            value: ele?.id?.toString(),
+            value: ele?.id,
             label: ele?.name,
         }));
 
@@ -211,7 +211,7 @@ exports.getCities = async (req, res) => {
         console.log("State_id:", state_id)
         const citiesData = await prisma.cities.findMany({
             where: {
-                state_id: parseInt(state_id),
+                state_id: state_id,
             },
             select: {
                 id: true,
@@ -220,7 +220,7 @@ exports.getCities = async (req, res) => {
         });
 
         const data = citiesData.map((ele) => ({
-            value: ele?.id?.toString(),
+            value: ele?.id,
             label: ele?.name,
         }));
 
@@ -241,11 +241,11 @@ exports.columnStore = async (req, res) => {
     const { employee_id, page_name, columns } = req.body;
 
     try {
-        const uuid = "ABODE" + Math.floor(100000000 + Math.random() * 900000000).toString();
+        // REMOVED: // REMOVED: // REMOVED: const uuid = "ABODE" + Math.floor(100000000 + Math.random() * 900000000).toString();
 
         const existingRecord = await prisma.columnstore.findFirst({
             where: {
-                employee_id: BigInt(employee_id),
+                employee_id: employee_id,
                 page_name: page_name,
             },
         });
@@ -261,8 +261,7 @@ exports.columnStore = async (req, res) => {
         } else {
             await prisma.columnstore.create({
                 data: {
-                    uuid: uuid,
-                    employee_id: BigInt(employee_id),
+                    employee_id: employee_id,
                     page_name: page_name,
                     columns: columns,
                     created_at: new Date(),
@@ -289,7 +288,7 @@ exports.getColumnStore = async (req, res) => {
     try {
         const columnData = await prisma.columnstore.findFirst({
             where: {
-                employee_id: BigInt(employee_id),
+                employee_id: employee_id,
                 page_name: page_name,
             },
         });
@@ -370,10 +369,9 @@ const runBackup = async () => {
         }
 
         // Save to DB
-        const uuid = "ABDDB" + Math.floor(100000000 + Math.random() * 900000000).toString();
+        // REMOVED: // REMOVED: // REMOVED: const uuid = "ABDDB" + Math.floor(100000000 + Math.random() * 900000000).toString();
         await prisma.backupdata.create({
             data: {
-                uuid: uuid,
                 backup_name: backupFolderName,
                 backup_path: backupFolderPath,
                 created_at: new Date(),
@@ -433,7 +431,7 @@ exports.getBackupRecords = async (req, res) => {
         return res.status(200).json({
             status: "success",
             message: "Backup records retrieved successfully",
-            data: serializeBigInt(existingRecords),
+            data: existingRecords,
         });
     } catch (error) {
         logger.error(`Get Backup Records Error: ${error.message}, File: settingController-getBackupRecords`);
@@ -581,7 +579,7 @@ exports.restoreDataBackup = async (req, res) => {
                     // If not in DB, insert it
                     const newRec = await prisma.backupdata.create({
                         data: {
-                            uuid: "ABDDB" + Date.now(), // or your uuid gen
+                            id: "ABDDB" + Date.now(), // or your uuid gen
                             backup_name: fb.backup_name,
                             backup_path: fb.backup_path,
                             created_at: fb.created_at,
@@ -674,7 +672,7 @@ exports.getBackupSchedule = async (req, res) => {
         return res.status(200).json({
             status: "success",
             message: "Backup schedule retrieved successfully",
-            data: serializeBigInt(recordsSchedule),
+            data: recordsSchedule,
         });
     } catch (error) {
         logger.error(`Get Backup Schedule Error: ${error.message}, File: settingController-getBackupSchedule`);
@@ -736,7 +734,7 @@ exports.getAllAmenities = async (req, res) => {
 
         return res.status(200).json({
             status: "success",
-            data: serializeBigInt(amenitiesData),
+            data: amenitiesData,
             totalAmenities,
             totalPages: Math.ceil(totalAmenities / limit),
             currentPage: parseInt(page),
@@ -757,7 +755,7 @@ exports.addAmenities = async (req, res) => {
         const existingAmenity = await prisma.amenities.findFirst({
             where: {
                 flat_type: flat_type,
-                project_id: project_id ? BigInt(project_id) : null
+                project_id: project_id ? project_id : null
             },
         });
 
@@ -773,7 +771,7 @@ exports.addAmenities = async (req, res) => {
             data: {
                 flat_type: flat_type,
                 amount: parseInt(amount),
-                project_id: project_id ? BigInt(project_id) : null,
+                project_id: project_id ? project_id : null,
                 created_at: new Date(),
             },
         });
@@ -796,7 +794,7 @@ exports.updateAmenities = async (req, res) => {
 
     try {
         const existingAmenity = await prisma.amenities.findFirst({
-            where: { id: BigInt(amenitiesId) },
+            where: { id: amenitiesId },
         });
 
         if (!existingAmenity) {
@@ -810,8 +808,8 @@ exports.updateAmenities = async (req, res) => {
             const duplicateAmenity = await prisma.amenities.findFirst({
                 where: {
                     flat_type: flat_type || existingAmenity.flat_type,
-                    project_id: project_id ? BigInt(project_id) : existingAmenity.project_id,
-                    NOT: { id: BigInt(amenitiesId) },
+                    project_id: project_id ? project_id : existingAmenity.project_id,
+                    NOT: { id: amenitiesId },
                 },
             });
 
@@ -824,11 +822,11 @@ exports.updateAmenities = async (req, res) => {
         }
 
         await prisma.amenities.update({
-            where: { id: BigInt(amenitiesId) },
+            where: { id: amenitiesId },
             data: {
                 amount: amount ? parseInt(amount) : existingAmenity.amount,
                 flat_type: flat_type ? flat_type : existingAmenity.flat_type,
-                project_id: project_id ? BigInt(project_id) : existingAmenity.project_id,
+                project_id: project_id ? project_id : existingAmenity.project_id,
                 updated_at: new Date(),
             },
         });
@@ -925,7 +923,7 @@ exports.getListAmenities = async (req, res) => {
                 flat_type: flatType
             };
             if (project_id) {
-                whereCondition.project_id = BigInt(project_id);
+                whereCondition.project_id = project_id;
             }
 
             amenities = await prisma.amenities.findFirst({
@@ -960,7 +958,7 @@ exports.deleteAmenities = async (req, res) => {
 
         const existingAmenities = await prisma.amenities.findUnique({
             where: {
-                id: parseInt(amenitiesId)
+                id: amenitiesId
             }
         });
 
@@ -973,7 +971,7 @@ exports.deleteAmenities = async (req, res) => {
 
         const deletedAmenities = await prisma.amenities.delete({
             where: {
-                id: parseInt(amenitiesId)
+                id: amenitiesId
             }
         });
 
@@ -1011,7 +1009,7 @@ exports.uploadParsedGlobal = async (req, res) => {
             const allProjects = await prisma.project.findMany();
             const projectMap = {};
             allProjects.forEach(p => {
-                projectMap[p.project_name.toLowerCase().trim()] = parseInt(p.id);
+                projectMap[p.project_name.toLowerCase().trim()] = p.id;
             });
 
             const workbook = xlsx.readFile(file.path);
@@ -1058,7 +1056,7 @@ exports.uploadParsedGlobal = async (req, res) => {
                         if (!blockRecord) {
                             blockRecord = await prisma.block.create({
                                 data: {
-                                    uuid: "CRMEMP" + Math.floor(100000000 + Math.random() * 900000000),
+                                    id: "CRMEMP" + Math.floor(100000000 + Math.random() * 900000000),
                                     block_name: row["Block"].trim(),
                                     project_id: project_id,
                                 },
@@ -1073,7 +1071,7 @@ exports.uploadParsedGlobal = async (req, res) => {
                             if (!groupOwnerRecord) {
                                 groupOwnerRecord = await prisma.groupowner.create({
                                     data: {
-                                        uuid: "ABDGO" + Math.floor(100000000 + Math.random() * 900000000),
+                                        id: "ABDGO" + Math.floor(100000000 + Math.random() * 900000000),
                                         name: row["Group/Owner"].trim(),
                                     },
                                 });
@@ -1087,7 +1085,7 @@ exports.uploadParsedGlobal = async (req, res) => {
 
                         const existingFlat = await prisma.flat.findFirst({
                             where: {
-                                project_id: BigInt(project_id),
+                                project_id: project_id,
                                 flat_no: row["Flat No"].toString(),
                                 floor_no: row["Floor No"].toString(),
                                 block_id: blockRecord.id,
@@ -1122,7 +1120,7 @@ exports.uploadParsedGlobal = async (req, res) => {
 
                         const newFlat = await prisma.flat.create({
                             data: {
-                                uuid: "ABODE" + Math.floor(100000000 + Math.random() * 900000000),
+                                id: "ABODE" + Math.floor(100000000 + Math.random() * 900000000),
                                 flat_no: row["Flat No"].toString(),
                                 floor_no: floorNoVal,
                                 block_id: blockRecord.id,
@@ -1147,14 +1145,14 @@ exports.uploadParsedGlobal = async (req, res) => {
                                 // floor_rise: parseBoolean(row["Floor Rise"]),
                                 group_owner_id: groupOwnerRecord ? groupOwnerRecord.id : null,
                                 project_id: project_id,
-                                added_by_employee_id: BigInt(employee_id),
+                                added_by_employee_id: employee_id,
                             },
                         });
 
                         await prisma.taskactivities.create({
                             data: {
-                                employee_id: BigInt(employee_id),
-                                flat_id: BigInt(newFlat.id),
+                                employee_id: employee_id,
+                                flat_id: newFlat.id,
                                 ta_message: `${newFlat.flat_no} Flat Added via bulk upload`,
                             },
                         });
@@ -1206,7 +1204,7 @@ exports.uploadParsedGlobal = async (req, res) => {
                     if (countryName) {
                         const country = await prisma.country.findFirst({ where: { name: countryName.trim() } });
                         if (!country) return { error: `Country '${countryName}' not found` };
-                        countryId = Number(country.id);
+                        countryId = country.id;
                     }
 
                     if (stateName) {
@@ -1227,7 +1225,7 @@ exports.uploadParsedGlobal = async (req, res) => {
                 const resolveCountry = async (countryName) => {
                     if (!countryName) return null;
                     const country = await prisma.country.findFirst({ where: { name: countryName.trim() } });
-                    return country ? Number(country.id) : null;
+                    return country ? country.id : null;
                 };
 
                 for (const row of customerData) {
@@ -1268,7 +1266,7 @@ exports.uploadParsedGlobal = async (req, res) => {
                             customerResult.skippedRows.push({ row, reason: "Invalid phone" });
                             continue;
                         }
-                        const existingPhone = await prisma.customers.findFirst({ where: { phone_number: phone, project_id: BigInt(project_id) } });
+                        const existingPhone = await prisma.customers.findFirst({ where: { phone_number: phone, project_id: project_id } });
                         if (existingPhone) {
                             customerResult.skipped++;
                             customerResult.skippedRows.push({ row, reason: "Duplicate phone within the same project" });
@@ -1335,12 +1333,11 @@ exports.uploadParsedGlobal = async (req, res) => {
                         }
 
                         // ✅ Generate UUID
-                        const uuid = "CUST" + Math.floor(100000 + Math.random() * 900000);
+                        // REMOVED: // REMOVED: // REMOVED: const uuid = "CUST" + Math.floor(100000 + Math.random() * 900000);
 
                         // ✅ Insert Customer
                         const customer = await prisma.customers.create({
                             data: {
-                                uuid,
                                 prefixes: row["Prefixes"] || null,
                                 first_name: row["First Name"].trim(),
                                 last_name: row["Last Name"].trim(),
@@ -1368,8 +1365,8 @@ exports.uploadParsedGlobal = async (req, res) => {
                                 no_of_years_city: row["Number of years residing at city"] ? parseInt(row["Number of years residing at city"]) : null,
                                 have_you_owned_abode: row["Have you ever owned a Abode home / property?"]?.toString().toLowerCase() === "yes",
                                 if_owned_project_name: row["If Yes, Project Name"] || null,
-                                added_by_employee_id: BigInt(employee_id),
-                                project_id: BigInt(project_id),
+                                added_by_employee_id: employee_id,
+                                project_id: project_id,
                             },
                         });
 
@@ -1407,7 +1404,7 @@ exports.uploadParsedGlobal = async (req, res) => {
                         if (row["Current Designation"]) {
                             await prisma.profession.create({
                                 data: {
-                                    customer_id: BigInt(customer.id),
+                                    customer_id: customer.id,
                                     current_designation: row["Current Designation"] || null,
                                     name_of_current_organization: row["Current Organization"] || null,
                                     address_of_current_organization: row["Organization Address"] || null,
@@ -1420,9 +1417,9 @@ exports.uploadParsedGlobal = async (req, res) => {
                         // ✅ Activity log
                         await prisma.customeractivities.create({
                             data: {
-                                customer_id: BigInt(customer.id),
+                                customer_id: customer.id,
                                 ca_message: "Customer created via bulk upload",
-                                employee_id: BigInt(employee_id),
+                                employee_id: employee_id,
                             },
                         });
 
@@ -1515,7 +1512,7 @@ exports.uploadParsedGlobal = async (req, res) => {
                         let existingCustomer = await prisma.customers.findFirst({
                             where: {
                                 phone_number: row["Customer Phone"].toString().trim(),
-                                project_id: BigInt(project_id)
+                                project_id: project_id
                             },
                         });
 
@@ -1589,8 +1586,8 @@ exports.uploadParsedGlobal = async (req, res) => {
                         // ✅ Insert Assign Flat to Customer
                         const customer = await prisma.customerflat.create({
                             data: {
-                                flat_id: BigInt(existingFlat?.id),
-                                customer_id: BigInt(existingCustomer?.id),
+                                flat_id: existingFlat?.id,
+                                customer_id: existingCustomer?.id,
                                 application_date: parsedApplicationDate,
                                 saleable_area_sq_ft: parseInt(row["Saleable Area (sq.ft.)"]),
                                 rate_per_sq_ft: parseInt(row["Rate Per Sq.ft (₹)"]),
@@ -1616,11 +1613,11 @@ exports.uploadParsedGlobal = async (req, res) => {
 
                         await prisma.flat.update({
                             where: {
-                                id: BigInt(existingFlat?.id),
+                                id: existingFlat?.id,
                             },
                             data: {
                                 status: "Sold",
-                                customer_id: BigInt(existingCustomer?.id),
+                                customer_id: existingCustomer?.id,
                                 totalAmount: parseFloat(row["Total Cost of Unit (₹)"]),
                                 updated_at: new Date(),
                             },
@@ -1629,9 +1626,9 @@ exports.uploadParsedGlobal = async (req, res) => {
                         // ✅ Activity log
                         await prisma.taskactivities.create({
                             data: {
-                                flat_id: BigInt(existingFlat?.id),
+                                flat_id: existingFlat?.id,
                                 ta_message: "Flat assiged to customer created via bulk upload",
-                                employee_id: BigInt(employee_id),
+                                employee_id: employee_id,
                             },
                         });
 
@@ -1719,7 +1716,7 @@ exports.uploadParsedGlobal = async (req, res) => {
                         }
 
                         const flatCost = await prisma.customerflat.findFirst({
-                            where: { flat_id: BigInt(existingFlat?.id) },
+                            where: { flat_id: existingFlat?.id },
                             select: {
                                 toatlcostofuint: true,
                                 grand_total: true,
@@ -1735,7 +1732,7 @@ exports.uploadParsedGlobal = async (req, res) => {
 
                         const totalPayments = await prisma.payments.aggregate({
                             _sum: { amount: true },
-                            where: { flat_id: BigInt(existingFlat?.id) },
+                            where: { flat_id: existingFlat?.id },
                         });
 
                         const existingPayments = totalPayments._sum.amount || 0;
@@ -1758,9 +1755,9 @@ exports.uploadParsedGlobal = async (req, res) => {
                         // ✅ Insert payments
                         const customer = await prisma.payments.create({
                             data: {
-                                uuid: "ABDPT" + Math.floor(100000 + Math.random() * 900000).toString(),
-                                flat_id: BigInt(existingFlat?.id),
-                                customer_id: BigInt(existingFlat?.customer_id),
+                                id: "ABDPT" + Math.floor(100000 + Math.random() * 900000).toString(),
+                                flat_id: existingFlat?.id,
+                                customer_id: existingFlat?.customer_id,
                                 amount: parseFloat(row["Amount"]) || null,
                                 payment_type: row["Payment Type"],
                                 payment_towards: row["Payment Towards"],
@@ -1769,16 +1766,16 @@ exports.uploadParsedGlobal = async (req, res) => {
                                 payment_date: parsedDateOfPayment,
                                 trasnaction_id: row["Transaction Id"],
                                 comment: row["Comment"],
-                                added_by_employee_id: BigInt(employee_id),
+                                added_by_employee_id: employee_id,
                             },
                         });
 
                         // ✅ Activity log
                         await prisma.taskactivities.create({
                             data: {
-                                flat_id: BigInt(existingFlat?.id),
+                                flat_id: existingFlat?.id,
                                 ta_message: "Payment created via bulk upload",
-                                employee_id: BigInt(employee_id),
+                                employee_id: employee_id,
                             },
                         });
 
@@ -1837,7 +1834,7 @@ exports.AddLeadStage = async (req, res) => {
             status: 'success',
             message: "Lead stage added successfully",
             data: {
-                id: newStage.id.toString(),
+                id: newStage.id,
                 lead_id: newStage.lead_id ? newStage.lead_id.toString() : null,
                 name: newStage.name,
                 order: newStage.order,
@@ -1947,7 +1944,7 @@ exports.GetLeadStages = async (req, res) => {
 //         console.log("id", id, "name", name, "newOrder", newOrder)
 
 //         const stage = await prisma.leadstages.findUnique({
-//             where: { id: BigInt(id) },
+//             where: { id: id },
 //         });
 
 //         if (!stage) {
@@ -2003,7 +2000,7 @@ exports.GetLeadStages = async (req, res) => {
 
 //         // Update the stage
 //         const updatedStage = await prisma.leadstages.update({
-//             where: { id: BigInt(id) },
+//             where: { id: id },
 //             data: {
 //                 name: name || stage.name,
 //                 order: newOrder || stage.order,
@@ -2015,7 +2012,7 @@ exports.GetLeadStages = async (req, res) => {
 //             status: "success",
 //             message: "Lead stage updated successfully",
 //             data: {
-//                 id: updatedStage.id.toString(),
+//                 id: updatedStage.id,
 //                 lead_id: updatedStage.lead_id ? updatedStage.lead_id.toString() : null,
 //                 name: updatedStage.name,
 //                 order: updatedStage.order,
@@ -2038,7 +2035,7 @@ exports.UpdateLeadStage = async (req, res) => {
         const { name, newOrder } = req.body;
 
         const stage = await prisma.leadstages.findUnique({
-            where: { id: BigInt(id) },
+            where: { id: id },
         });
 
         if (!stage) {
@@ -2061,7 +2058,7 @@ exports.UpdateLeadStage = async (req, res) => {
             await prisma.$transaction(async (tx) => {
                 // Step 1: free the current order
                 await tx.leadstages.update({
-                    where: { id: BigInt(id) },
+                    where: { id: id },
                     data: { order: -1 },
                 });
 
@@ -2096,7 +2093,7 @@ exports.UpdateLeadStage = async (req, res) => {
 
                 // Step 3: put the stage into its new order + update name
                 await tx.leadstages.update({
-                    where: { id: BigInt(id) },
+                    where: { id: id },
                     data: {
                         name: name || stage.name,
                         order: newOrder,
@@ -2107,7 +2104,7 @@ exports.UpdateLeadStage = async (req, res) => {
         } else {
             // just name update
             await prisma.leadstages.update({
-                where: { id: BigInt(id) },
+                where: { id: id },
                 data: {
                     name: name || stage.name,
                     updated_at: new Date(),
@@ -2137,7 +2134,7 @@ exports.UpdateLeadStage = async (req, res) => {
 
 //         const stage = await prisma.leadstages.findUnique({
 //             where: {
-//                 id: BigInt(id )
+//                 id: id 
 //             }
 //         });
 //         if (!stage) {
@@ -2147,7 +2144,7 @@ exports.UpdateLeadStage = async (req, res) => {
 //             });
 //         }
 
-//         await prisma.leadstages.delete({ where: { id: BigInt(id ) } });
+//         await prisma.leadstages.delete({ where: { id: id  } });
 
 //         // Reorder remaining
 //         await prisma.$executeRawUnsafe(`
@@ -2183,14 +2180,14 @@ exports.DeleteLeadStage = async (req, res) => {
         }
 
         const stage = await prisma.leadstages.findUnique({
-            where: { id: BigInt(id) },
+            where: { id: id },
         });
 
         if (!stage) {
             return res.status(404).json({ status: "error", message: "Stage not found" });
         }
 
-        await prisma.leadstages.delete({ where: { id: BigInt(id) } });
+        await prisma.leadstages.delete({ where: { id: id } });
 
         // Reorder remaining stages
         const stages = await prisma.leadstages.findMany({

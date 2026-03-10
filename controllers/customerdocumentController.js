@@ -24,7 +24,7 @@ function getFileIconType(fileType) {
 const deleteFolderRecursively = async (prismaInstance, folderId) => {
   // Find all direct children of the folder
   const childFolders = await prismaInstance.customerfilemanager.findMany({
-    where: { parent_id: parseInt(folderId) },
+    where: { parent_id: folderId },
   });
 
   // Recursively delete child folders/files
@@ -35,25 +35,25 @@ const deleteFolderRecursively = async (prismaInstance, folderId) => {
 
   // After all child folders/files are deleted, delete the current folder
   await prismaInstance.customerfilemanager.delete({
-    where: { id: parseInt(folderId) },
+    where: { id: folderId },
   });
 };
 
 exports.createFolder = async (req, res) => {
-  const { folderName, customer_uid, user_id, file_type, currentFolderUuid, currentFolderId, employee_id } = req.body;
+  const { folderName, customer_id_ref, user_id, file_type, currentFolderUuid, currentFolderId, employee_id } = req.body;
 
   // Validate required fields
-  if (!folderName || !customer_uid || !employee_id) {
+  if (!folderName || !customer_id_ref || !employee_id) {
     return res.status(200).json({
       status: "error",
-      message: "folderName, customer_uid, and employee_id are required",
+      message: "folderName, customer_id_ref, and employee_id are required",
     });
   }
 
   try {
     const customerdetails = await prisma.customers.findFirst({
       where: {
-        uuid: customer_uid,
+        id: customer_id_ref,
       },
     });
 
@@ -64,7 +64,7 @@ exports.createFolder = async (req, res) => {
       });
     }
 
-    const uploadsDir = path.join(__dirname, "..", "uploads", `/customers/${customer_uid}`);
+    const uploadsDir = path.join(__dirname, "..", "uploads", `/customers/${customer_id_ref}`);
     const filemanagerDir = path.join(uploadsDir, "filemanager");
 
     if (!fs.existsSync(uploadsDir)) {
@@ -82,7 +82,7 @@ exports.createFolder = async (req, res) => {
 
     if (currentFolderUuid) {
       parentFolder = await prisma.customerfilemanager.findUnique({
-        where: { uuid: currentFolderUuid }, // Check by UUID first
+        where: { id: currentFolderUuid }, // Check by UUID first
       });
 
       if (!parentFolder) {
@@ -128,12 +128,12 @@ exports.createFolder = async (req, res) => {
     // Insert the folder into the database
     await prisma.customerfilemanager.create({
       data: {
-        uuid: folderUid,
+        id: folderUid,
         name: folderName,
         file_icon_type: fileIconType,
         file_type: "folder",
         file_path: filePath,
-        file_url: `${process.env.API_URL}/uploads/customers/${customer_uid}/${filePath}`,
+        file_url: `${process.env.API_URL}/uploads/customers/${customer_id_ref}/${filePath}`,
         parent_id: currentFolderId || null,
         customer_id: customerdetails?.id,
         added_by: user_id,
@@ -146,7 +146,7 @@ exports.createFolder = async (req, res) => {
     await prisma.customeractivities.create({
       data: {
         customer_id: customerdetails.id,
-        employee_id: parseInt(employee_id),
+        employee_id: employee_id,
         ca_message: `Folder "${folderName}" was created in file manager`,
         employee_short_name: "C", // Consider fetching from employee data
         color_code: "green", // Using green for creation
@@ -167,11 +167,11 @@ exports.createFolder = async (req, res) => {
 };
 
 exports.getDocuments = async (req, res) => {
-  const { currentFolderId, customer_uid } = req.query;
+  const { currentFolderId, customer_id_ref } = req.query;
   try {
     const customerdetails = await prisma.customers.findFirst({
       where: {
-        uuid: customer_uid,
+        id: customer_id_ref,
       },
     });
 
@@ -194,8 +194,8 @@ exports.getDocuments = async (req, res) => {
     });
 
     const documentsdata = documents.map((doc) => ({
-      id: doc.id.toString(),
-      uuid: doc.uuid,
+      id: doc.id,
+      id: doc.id,
       name: doc.name,
       file_type: doc.file_type,
       file_icon_type: doc.file_icon_type,
@@ -212,7 +212,7 @@ exports.getDocuments = async (req, res) => {
       // Fetch the current folder's parent ID only if currentFolderId is defined and valid
       const currentFolderdocuments = await prisma.customerfilemanager.findFirst({
         where: {
-          id: BigInt(currentFolderId), // Convert to BigInt safely
+          id: currentFolderId, // Convert to BigInt safely
         },
       });
       superparent = currentFolderdocuments?.parent_id || null;
@@ -240,7 +240,7 @@ exports.deleteFolder = async (req, res) => {
   try {
     // Find the folder in the database
     const folder = await prisma.customerfilemanager.findUnique({
-      where: { id: parseInt(folder_id) },
+      where: { id: folder_id },
     });
 
     if (!folder) {
@@ -311,7 +311,7 @@ exports.uploadFile = async (req, res) => {
     // Retrieve the uploaded files and additional fields
     const uploadedFiles = files.uploadfile; // The field name from the FormData
     const folderPath = fields.folderPath[0];
-    const customer_uid = fields.customer_uid[0];
+    const customer_id_ref = fields.customer_id_ref[0];
     const currentFolderId = fields.currentFolderId[0];
     const fileType = fields.file_type[0];
     const user_id = fields.user_id[0];
@@ -319,7 +319,7 @@ exports.uploadFile = async (req, res) => {
 
     const customerdetails = await prisma.customers.findFirst({
       where: {
-        uuid: customer_uid,
+        id: customer_id_ref,
       },
     });
 
@@ -330,7 +330,7 @@ exports.uploadFile = async (req, res) => {
       });
     }
 
-    const maindir = path.join(__dirname, "..", "uploads", `/customers/${customer_uid}`);
+    const maindir = path.join(__dirname, "..", "uploads", `/customers/${customer_id_ref}`);
     // Check if maindir exists; if not, create it
     if (!fs.existsSync(maindir)) {
       fs.mkdirSync(maindir, { recursive: true });
@@ -369,14 +369,14 @@ exports.uploadFile = async (req, res) => {
       await prisma.customerfilemanager.create({
         data: {
           name: originalFilename,
-          uuid: fileUid,
+          id: fileUid,
           file_type: new_file_type,
-          file_url: `${process.env.API_URL}/uploads/customers/${customer_uid}/${folderPath}/${newFilename}`,
+          file_url: `${process.env.API_URL}/uploads/customers/${customer_id_ref}/${folderPath}/${newFilename}`,
           // file_icon_type: fileIconType,
           file_path: `${folderPath}/${newFilename}`,
-          parent_id: currentFolderId && !isNaN(currentFolderId) ? BigInt(currentFolderId) : null,
+          parent_id: currentFolderId ? currentFolderId : null,
           customer_id: customerdetails?.id,
-          added_by: parseInt(user_id),
+          added_by: user_id,
           created_at: new Date(),
           updated_at: new Date(),
         },
@@ -385,7 +385,7 @@ exports.uploadFile = async (req, res) => {
       await prisma.customeractivities.create({
         data: {
           customer_id: customerdetails.id,
-          employee_id: parseInt(employee_id),
+          employee_id: employee_id,
           ca_message: `File "${originalFilename}" was uploaded to file manager`,
           employee_short_name: "C", // Consider fetching from employee data
           color_code: "green", // Using green for creation
@@ -421,7 +421,7 @@ exports.deleteFile = async (req, res) => {
     // Find the file in the database
     const file = await prisma.customerfilemanager.findUnique({
       where: {
-        id: parseInt(file_id),
+        id: file_id,
       },
     });
 
@@ -464,15 +464,15 @@ exports.deleteFile = async (req, res) => {
     // Remove the file entry from the database
     await prisma.customerfilemanager.delete({
       where: {
-        id: parseInt(file_id),
+        id: file_id,
       },
     });
 
     // Track file deletion activity
     await prisma.customeractivities.create({
       data: {
-        customer_id: BigInt(customerId),
-        employee_id: parseInt(employee_id),
+        customer_id: customerId,
+        employee_id: employee_id,
         ca_message: `File "${fileName}" was deleted from file manager`,
         employee_short_name: "C", // Consider fetching from employee data
         color_code: "red", // Using red for deletion
@@ -494,19 +494,19 @@ exports.deleteFile = async (req, res) => {
 };
 
 exports.syncFileSystemWithDB = async (req, res) => {
-  const { customer_uid, employee_id } = req.body;
+  const { customer_id_ref, employee_id } = req.body;
 
   // Validate required fields
-  if (!customer_uid || !employee_id) {
+  if (!customer_id_ref || !employee_id) {
     return res.status(200).json({
       status: "error",
-      message: "customer_uid and employee_id are required",
+      message: "customer_id_ref and employee_id are required",
     });
   }
   try {
     // Get customer details
     const customer = await prisma.customers.findFirst({
-      where: { uuid: customer_uid },
+      where: { id: customer_id_ref },
     });
 
     if (!customer) {
@@ -521,7 +521,7 @@ exports.syncFileSystemWithDB = async (req, res) => {
       where: { customer_id: customer.id },
       select: {
         id: true,
-        uuid: true,
+        id: true,
         name: true,
         file_path: true,
         file_type: true,
@@ -536,7 +536,7 @@ exports.syncFileSystemWithDB = async (req, res) => {
     });
 
     // Path to customer's file manager directory
-    const customerDir = path.join(__dirname, "..", "uploads", "customers", customer_uid, "filemanager");
+    const customerDir = path.join(__dirname, "..", "uploads", "customers", customer_id_ref, "filemanager");
 
     // Recursive function to scan directory and compare with DB
     const scanDirectory = async (dirPath, parentPath = "filemanager", parentId = null) => {
@@ -571,16 +571,16 @@ exports.syncFileSystemWithDB = async (req, res) => {
           // Create new DB entry
           const newEntry = await prisma.customerfilemanager.create({
             data: {
-              uuid: fileUid,
+              id: fileUid,
               name: file.name,
               file_icon_type: getFileIconType(fileType),
               file_type: isDirectory ? "folder" : fileType,
               file_size: isDirectory ? null : (await fs.promises.stat(fullPath)).size,
               file_path: relativePath,
-              file_url: `${process.env.API_URL}/uploads/customers/${customer_uid}/${relativePath}`,
+              file_url: `${process.env.API_URL}/uploads/customers/${customer_id_ref}/${relativePath}`,
               parent_id: parentId,
               customer_id: customer.id,
-              added_by: parseInt(employee_id),
+              added_by: employee_id,
               created_at: new Date(),
               updated_at: new Date(),
             },
@@ -597,7 +597,7 @@ exports.syncFileSystemWithDB = async (req, res) => {
           await prisma.customeractivities.create({
             data: {
               customer_id: customer.id,
-              employee_id: parseInt(employee_id),
+              employee_id: employee_id,
               ca_message: `File system sync: ${isDirectory ? "Folder" : "File"} "${file.name}" was added to database`,
               employee_short_name: "S", // 'S' for System
               color_code: "blue", // Using blue for sync operations

@@ -37,7 +37,7 @@ exports.GetCustomers = async (req, res) => {
 
     const searchCondition = {
       soft_delete: 0,
-      ...(projectId && { project_id: BigInt(projectId) }),
+      ...(projectId && { project_id: projectId }),
       // Filter by allocated projects (null means admin - show all)
       ...(!projectId && allocatedProjectIds !== null && {
         project_id: { in: allocatedProjectIds },
@@ -76,7 +76,6 @@ exports.GetCustomers = async (req, res) => {
 
       select: {
         id: true,
-        uuid: true,
         prefixes: true,
         first_name: true,
         last_name: true,
@@ -127,7 +126,7 @@ exports.GetCustomers = async (req, res) => {
         },
         flats: {
           select: {
-            uuid: true,
+            id: true,
             flat_no: true,
             floor_no: true,
             block_id: true,
@@ -153,8 +152,8 @@ exports.GetCustomers = async (req, res) => {
     const pageCustomerCount = customers.length;
 
     const customerDetails = customers.map((customer) => ({
-      id: customer?.id.toString(),
-      customer_uid: customer?.uuid,
+      id: customer?.id,
+      customer_id_ref: customer?.id,
       prefixes: customer?.prefixes,
       first_name: customer?.first_name,
       last_name: customer?.last_name,
@@ -176,7 +175,7 @@ exports.GetCustomers = async (req, res) => {
       mother_tongue: customer?.mother_tongue,
       flat_details:
         customer?.flats.map((flat) => ({
-          uuid: flat?.uuid,
+          id: flat?.id,
           flat_no: flat?.flat_no,
           floor_no: flat?.floor_no,
           flat_img_path: flat?.flat_img_path,
@@ -283,7 +282,7 @@ exports.AddCustomer = async (req, res) => {
       where: {
         phone_code,
         phone_number,
-        project_id: project_id ? BigInt(project_id) : undefined,
+        project_id: project_id ? project_id : undefined,
       },
     });
     if (existingPhone) {
@@ -293,11 +292,10 @@ exports.AddCustomer = async (req, res) => {
       });
     }
 
-    const uuid = "CUST" + Math.floor(100000 + Math.random() * 900000);
+    // REMOVED: // REMOVED: // REMOVED: const uuid = "CUST" + Math.floor(100000 + Math.random() * 900000);
 
     const customer = await prisma.customers.create({
       data: {
-        uuid,
         prefixes,
         first_name,
         last_name,
@@ -322,10 +320,10 @@ exports.AddCustomer = async (req, res) => {
         pan_card_no,
         aadhar_card_no,
         country_of_citizenship: country_of_citizenship
-          ? BigInt(country_of_citizenship)
+          ? country_of_citizenship
           : null,
         country_of_residence: country_of_residence
-          ? BigInt(country_of_residence)
+          ? country_of_residence
           : null,
         mother_tongue,
         name_of_poa,
@@ -334,8 +332,8 @@ exports.AddCustomer = async (req, res) => {
         no_of_years_city,
         have_you_owned_abode: have_you_owned_abode === "true" ? true : false,
         if_owned_project_name,
-        project_id: project_id ? BigInt(project_id) : null,
-        added_by_employee_id: BigInt(employeeId),
+        project_id: project_id ? project_id : null,
+        added_by_employee_id: employeeId,
         status: "Active",
         created_at: new Date(),
       },
@@ -343,7 +341,7 @@ exports.AddCustomer = async (req, res) => {
 
     await prisma.profession.create({
       data: {
-        customer_id: BigInt(customer?.id),
+        customer_id: customer?.id,
         current_designation: current_designation || null,
         name_of_current_organization: name_of_current_organization || null,
         address_of_current_organization:
@@ -357,8 +355,8 @@ exports.AddCustomer = async (req, res) => {
 
     await prisma.customeractivities.create({
       data: {
-        customer_id: BigInt(customer?.id),
-        employee_id: BigInt(employeeId),
+        customer_id: customer?.id,
+        employee_id: employeeId,
         ca_message: "Customer created",
         employee_short_name: "C",
         color_code: "green",
@@ -368,11 +366,11 @@ exports.AddCustomer = async (req, res) => {
     if (correspondence_state && correspondence_country) {
       await prisma.customeraddress.create({
         data: {
-          customer_id: BigInt(customer?.id),
+          customer_id: customer?.id,
           address_type: "Correspondence",
-          country: BigInt(correspondence_country),
-          state: Number(correspondence_state),
-          city: Number(correspondence_city),
+          country: correspondence_country,
+          state: correspondence_state,
+          city: correspondence_city,
           address: correspondence_address,
           pincode: correspondence_pincode,
           created_at: new Date(),
@@ -383,11 +381,11 @@ exports.AddCustomer = async (req, res) => {
     if (permanent_state && permanent_country) {
       await prisma.customeraddress.create({
         data: {
-          customer_id: BigInt(customer?.id),
+          customer_id: customer?.id,
           address_type: "Permanent",
-          country: BigInt(permanent_country),
-          state: Number(permanent_state),
-          city: Number(permanent_city),
+          country: permanent_country,
+          state: permanent_state,
+          city: permanent_city,
           address: permanent_address,
           pincode: permanent_pincode,
           created_at: new Date(),
@@ -398,7 +396,7 @@ exports.AddCustomer = async (req, res) => {
     return res.status(201).json({
       status: "success",
       message: "Customer added successfully",
-      uuid: customer?.uuid,
+      id: customer?.id,
     });
   } catch (error) {
     logger.error(
@@ -414,6 +412,7 @@ exports.AddCustomer = async (req, res) => {
 exports.AddCustomerFlat = async (req, res) => {
   const {
     customerUuid,
+    customerId,
     flat_id,
     saleable_area_sq_ft,
     rate_per_sq_ft,
@@ -443,7 +442,8 @@ exports.AddCustomerFlat = async (req, res) => {
   } = req.body;
 
   try {
-    if (!flat_id && !customerUuid) {
+    const effectiveCustomerId = customerId || customerUuid;
+    if (!flat_id && !effectiveCustomerId) {
       return res.status(200).json({
         status: "error",
         message: "Missing fields are required",
@@ -452,7 +452,7 @@ exports.AddCustomerFlat = async (req, res) => {
 
     const customer = await prisma.customers.findUnique({
       where: {
-        uuid: customerUuid,
+        id: effectiveCustomerId,
       },
       select: {
         id: true,
@@ -462,7 +462,7 @@ exports.AddCustomerFlat = async (req, res) => {
     let flat_project_id = null;
     if (flat_id) {
       const flatDetails = await prisma.flat.findUnique({
-        where: { id: BigInt(flat_id) },
+        where: { id: flat_id },
         select: { project_id: true }
       });
       if (flatDetails && flatDetails.project_id) {
@@ -500,8 +500,8 @@ exports.AddCustomerFlat = async (req, res) => {
 
     const customerFlatListCreate = await prisma.customerflat.create({
       data: {
-        flat_id: flat_id ? BigInt(flat_id) : null,
-        customer_id: customer?.id ? BigInt(customer?.id) : null,
+        flat_id: flat_id ? flat_id : null,
+        customer_id: customer?.id ? customer?.id : null,
         saleable_area_sq_ft,
         rate_per_sq_ft,
         discount: discount ? parseFloat(discount) : null,
@@ -545,13 +545,13 @@ exports.AddCustomerFlat = async (req, res) => {
     await prisma.ageingrecord.create({
       data: {
         project_id: customerFlatListCreate?.flat?.project_id
-          ? BigInt(customerFlatListCreate.flat.project_id)
+          ? customerFlatListCreate.flat.project_id
           : null,
-        customer_id: customer?.id ? BigInt(customer?.id) : null,
+        customer_id: customer?.id ? customer?.id : null,
         customer_flat: customerFlatListCreate?.id
-          ? BigInt(customerFlatListCreate?.id)
+          ? customerFlatListCreate?.id
           : null,
-        flat_id: flat_id ? BigInt(flat_id) : null,
+        flat_id: flat_id ? flat_id : null,
         booking_date: applicationdate ? new Date(applicationdate) : null,
         total_amount: 0,
         ageing_days: applicationdate
@@ -565,7 +565,7 @@ exports.AddCustomerFlat = async (req, res) => {
 
     await prisma.flat.update({
       where: {
-        id: BigInt(flat_id),
+        id: flat_id,
       },
       data: {
         totalAmount: parseFloat(toatlcostofuint),
@@ -574,7 +574,7 @@ exports.AddCustomerFlat = async (req, res) => {
 
     const check_booking_stage = await prisma.bookingStages.findFirst({
       where: {
-        flat_id: BigInt(flat_id),
+        flat_id: flat_id,
       },
     });
 
@@ -582,8 +582,8 @@ exports.AddCustomerFlat = async (req, res) => {
       await prisma.bookingStages.create({
         data: {
           name: "Booking",
-          flat_id: flat_id ? BigInt(flat_id) : null,
-          customer_id: customer?.id ? BigInt(customer?.id) : null,
+          flat_id: flat_id ? flat_id : null,
+          customer_id: customer?.id ? customer?.id : null,
           created_at: new Date(),
         },
       });
@@ -592,7 +592,7 @@ exports.AddCustomerFlat = async (req, res) => {
     const customerAct = await prisma.taskactivities.create({
       data: {
         flat_id: flat_id,
-        employee_id: BigInt(employeeId),
+        employee_id: employeeId,
         ta_message: `Flat ${customerFlatListCreate.flat.flat_no} assigned to customer`,
         employee_short_name: "F",
         color_code: "purple",
@@ -601,11 +601,11 @@ exports.AddCustomerFlat = async (req, res) => {
 
     await prisma.flat.update({
       where: {
-        id: BigInt(flat_id),
+        id: flat_id,
       },
       data: {
         status: "Sold",
-        customer_id: BigInt(customer?.id),
+        customer_id: customer?.id,
         updated_at: new Date(),
       },
     });
@@ -629,6 +629,7 @@ exports.UpdateCustomerFlat = async (req, res) => {
   const {
     customerFlatId,
     customerUuid,
+    customerId,
     flat_id,
     saleable_area_sq_ft,
     discount,
@@ -657,38 +658,50 @@ exports.UpdateCustomerFlat = async (req, res) => {
   } = req.body;
 
   try {
-    if (!customerFlatId && !flat_id && !customerUuid) {
+    const effectiveCustomerId = customerId || customerUuid;
+    if (!effectiveCustomerId) {
       return res.status(200).json({
         status: "error",
-        message: "Missing fields are required",
+        message: "Customer id is required",
       });
     }
 
-    const customer = await prisma.customers.findUnique({
-      where: {
-        uuid: customerUuid,
-      },
-      select: {
-        id: true,
-      },
-    });
-
-    const existingCustomerFlat = await prisma.customerflat.findUnique({
-      where: {
-        id: BigInt(customerFlatId),
-      },
-    });
-
-    if (!existingCustomerFlat) {
+    if (!customerFlatId) {
       return res.status(200).json({
         status: "error",
-        message: "Customer flat not found",
+        message: "Customer flat id is required",
+      });
+    }
+
+    const customerFlatExist = await prisma.customerflat.findUnique({
+      where: {
+        id: customerFlatId,
+      },
+    });
+
+    if (!customerFlatExist) {
+      return res.status(200).json({
+        status: "error",
+        message: "Customer flat detail not found",
+      });
+    }
+
+    const customerExist = await prisma.customers.findUnique({
+      where: {
+        id: effectiveCustomerId,
+      },
+    });
+
+    if (!customerExist) {
+      return res.status(200).json({
+        status: "error",
+        message: "Customer not found",
       });
     }
 
     let flat_project_id = null;
     let flat_type = null;
-    const final_flat_id = flat_id ? BigInt(flat_id) : existingCustomerFlat.flat_id;
+    const final_flat_id = flat_id ? flat_id : customerFlatExist.flat_id;
     if (final_flat_id) {
       const flatDetails = await prisma.flat.findUnique({
         where: { id: final_flat_id },
@@ -738,11 +751,11 @@ exports.UpdateCustomerFlat = async (req, res) => {
     };
 
     const customerFlatListCreate = await prisma.customerflat.update({
-      where: { id: BigInt(customerFlatId) },
+      where: { id: customerFlatId },
       data: {
-        flat_id: flat_id ? BigInt(flat_id) : existingCustomerFlat.flat_id,
+        flat_id: flat_id ? flat_id : existingCustomerFlat.flat_id,
         customer_id: customer?.id
-          ? BigInt(customer?.id)
+          ? customer?.id
           : existingCustomerFlat.customer_id,
         saleable_area_sq_ft: compareAndTrack(
           "Saleable Area Sqft",
@@ -866,8 +879,8 @@ exports.UpdateCustomerFlat = async (req, res) => {
     if (changes.length > 0) {
       await prisma.customerflatupdateactivities.create({
         data: {
-          employee_id: BigInt(employeeId),
-          customerflat_id: BigInt(customerFlatId),
+          employee_id: employeeId,
+          customerflat_id: customerFlatId,
           message: changes.map((c) => `• ${c}`).join("\n"),
         },
       });
@@ -875,7 +888,7 @@ exports.UpdateCustomerFlat = async (req, res) => {
 
     await prisma.flat.update({
       where: {
-        id: BigInt(flat_id),
+        id: flat_id,
       },
       data: {
         totalAmount: parseFloat(toatlcostofuint),
@@ -885,7 +898,7 @@ exports.UpdateCustomerFlat = async (req, res) => {
     const customerAct = await prisma.taskactivities.create({
       data: {
         flat_id: flat_id,
-        employee_id: BigInt(employeeId),
+        employee_id: employeeId,
         ta_message: `Flat ${customerFlatListCreate.flat.flat_no} assigned to customer`,
         employee_short_name: "F",
         color_code: "purple",
@@ -910,6 +923,7 @@ exports.UpdateCustomerFlat = async (req, res) => {
 exports.UpdateCustomer = async (req, res) => {
   const {
     customerUuid,
+    customerId,
     prefixes,
     first_name,
     last_name,
@@ -960,16 +974,17 @@ exports.UpdateCustomer = async (req, res) => {
   } = req.body;
 
   try {
-    if (!customerUuid) {
+    const effectiveCustomerId = customerId || customerUuid;
+    if (!effectiveCustomerId) {
       return res.status(200).json({
         status: "error",
-        message: "Customer uuid is required",
+        message: "Customer id is required",
       });
     }
 
     const customerExist = await prisma.customers.findUnique({
       where: {
-        uuid: customerUuid,
+        id: effectiveCustomerId,
       },
     });
 
@@ -984,7 +999,7 @@ exports.UpdateCustomer = async (req, res) => {
       const isEmailExist = await prisma.customers.findFirst({
         where: {
           email,
-          uuid: { not: customerUuid },
+          id: { not: effectiveCustomerId },
         },
       });
       if (isEmailExist) {
@@ -1004,7 +1019,7 @@ exports.UpdateCustomer = async (req, res) => {
           phone_code,
           phone_number,
           project_id: customerExist?.project_id,
-          uuid: { not: customerUuid },
+          id: { not: customerUuid },
         },
       });
       if (isPhoneExist) {
@@ -1016,7 +1031,7 @@ exports.UpdateCustomer = async (req, res) => {
     }
 
     const updatedCustomer = await prisma.customers.update({
-      where: { uuid: customerUuid },
+      where: { id: customerUuid },
       data: {
         prefixes: prefixes ? prefixes : customerExist?.prefixes,
         first_name: first_name ? first_name : customerExist?.first_name,
@@ -1062,16 +1077,14 @@ exports.UpdateCustomer = async (req, res) => {
           : customerExist?.aadhar_card_no,
         ...(country_of_citizenship || customerExist?.country_of_citizenship
           ? {
-            country_of_citizenship: BigInt(
+            country_of_citizenship:
               country_of_citizenship || customerExist?.country_of_citizenship,
-            ),
           }
           : {}),
         ...(country_of_residence || customerExist?.country_of_residence
           ? {
-            country_of_residence: BigInt(
+            country_of_residence:
               country_of_residence || customerExist?.country_of_residence,
-            ),
           }
           : {}),
         mother_tongue: mother_tongue
@@ -1094,15 +1107,15 @@ exports.UpdateCustomer = async (req, res) => {
           have_you_owned_abode === "false"
             ? if_owned_project_name
             : customerExist?.if_owned_project_name,
-        project_id: project_id ? BigInt(project_id) : customerExist?.project_id,
+        project_id: project_id ? project_id : customerExist?.project_id,
         updated_at: new Date(),
       },
     });
 
     await prisma.customeractivities.create({
       data: {
-        customer_id: BigInt(customerExist.id),
-        employee_id: BigInt(employeeId),
+        customer_id: customerExist.id,
+        employee_id: employeeId,
         ca_message: "Customer details updated",
         employee_short_name: "U",
         color_code: "blue",
@@ -1111,21 +1124,21 @@ exports.UpdateCustomer = async (req, res) => {
 
     const correspondenceAddress = await prisma.customeraddress.findFirst({
       where: {
-        customer_id: BigInt(customerExist?.id),
+        customer_id: customerExist?.id,
         address_type: "Correspondence",
       },
     });
 
     const permanentAddress = await prisma.customeraddress.findFirst({
       where: {
-        customer_id: BigInt(customerExist?.id),
+        customer_id: customerExist?.id,
         address_type: "Permanent",
       },
     });
 
     const professionalDetails = await prisma.profession.findFirst({
       where: {
-        customer_id: BigInt(customerExist?.id),
+        customer_id: customerExist?.id,
       },
     });
 
@@ -1134,7 +1147,7 @@ exports.UpdateCustomer = async (req, res) => {
         where: { id: correspondenceAddress.id },
         data: {
           country: correspondence_country
-            ? BigInt(correspondence_country)
+            ? correspondence_country
             : correspondenceAddress.country,
           state: correspondence_state
             ? Number(correspondence_state)
@@ -1150,11 +1163,11 @@ exports.UpdateCustomer = async (req, res) => {
     } else if (correspondence_state && correspondence_country) {
       await prisma.customeraddress.create({
         data: {
-          customer_id: BigInt(customerExist?.id),
+          customer_id: customerExist?.id,
           address_type: "Correspondence",
-          country: BigInt(correspondence_country),
-          state: Number(correspondence_state),
-          city: Number(correspondence_city),
+          country: correspondence_country,
+          state: correspondence_state,
+          city: correspondence_city,
           address: correspondence_address,
           pincode: correspondence_pincode,
           created_at: new Date(),
@@ -1167,7 +1180,7 @@ exports.UpdateCustomer = async (req, res) => {
         where: { id: permanentAddress.id },
         data: {
           country: permanent_country
-            ? BigInt(permanent_country)
+            ? permanent_country
             : permanentAddress.country,
           state: permanent_state
             ? Number(permanent_state)
@@ -1181,11 +1194,11 @@ exports.UpdateCustomer = async (req, res) => {
     } else if (permanent_state && permanent_country) {
       await prisma.customeraddress.create({
         data: {
-          customer_id: BigInt(customerExist?.id),
+          customer_id: customerExist?.id,
           address_type: "Permanent",
-          country: BigInt(permanent_country),
-          state: Number(permanent_state),
-          city: Number(permanent_city),
+          country: permanent_country,
+          state: permanent_state,
+          city: permanent_city,
           address: permanent_address,
           pincode: permanent_pincode,
           created_at: new Date(),
@@ -1224,7 +1237,7 @@ exports.UpdateCustomer = async (req, res) => {
     ) {
       await prisma.profession.create({
         data: {
-          customer_id: BigInt(customerExist?.id),
+          customer_id: customerExist?.id,
           current_designation: current_designation || null,
           name_of_current_organization: name_of_current_organization || null,
           address_of_current_organization:
@@ -1240,7 +1253,7 @@ exports.UpdateCustomer = async (req, res) => {
     return res.status(200).json({
       status: "success",
       message: "Customer updated successfully",
-      uuid: customerExist?.uuid,
+      id: customerExist?.id,
     });
   } catch (error) {
     logger.error(
@@ -1254,10 +1267,10 @@ exports.UpdateCustomer = async (req, res) => {
 };
 
 exports.getSingleCustomerData = async (req, res) => {
-  const { customerUuid } = req.query;
+  const { customerId } = req.query;
 
   try {
-    if (!customerUuid) {
+    if (!customerId) {
       return res.status(200).json({
         status: "error",
         message: "Customer Id is required",
@@ -1266,7 +1279,7 @@ exports.getSingleCustomerData = async (req, res) => {
 
     const customer = await prisma.customers.findFirst({
       where: {
-        uuid: customerUuid,
+        id: customerId,
       },
       select: {
         id: true,
@@ -1332,7 +1345,7 @@ exports.getSingleCustomerData = async (req, res) => {
 
     const address = await prisma.customeraddress.findMany({
       where: {
-        customer_id: BigInt(customer?.id),
+        customer_id: customer?.id,
         address_type: {
           in: ["Correspondence", "Permanent"],
         },
@@ -1414,7 +1427,7 @@ exports.getSingleCustomerData = async (req, res) => {
 
     const professionalDetails = await prisma.profession.findFirst({
       where: {
-        customer_id: BigInt(customer?.id),
+        customer_id: customer?.id,
       },
       select: {
         current_designation: true,
@@ -1497,7 +1510,7 @@ exports.getSingleCustomerData = async (req, res) => {
 
     const customerFlat = await prisma.customerflat.count({
       where: {
-        customer_id: BigInt(customer?.id),
+        customer_id: customer?.id,
       },
     });
 
@@ -1523,17 +1536,17 @@ exports.getSingleCustomerData = async (req, res) => {
 
 //   try {
 //     await prisma.flat.updateMany({
-//       where: { customer_id: BigInt(singlecustomer_id) },
+//       where: { customer_id: singlecustomer_id },
 //       data: { customer_id: null, status: "Unsold" },
 //     });
 
 //     await prisma.customerflat.deleteMany({
-//       where: { customer_id: BigInt(singlecustomer_id) },
+//       where: { customer_id: singlecustomer_id },
 //     });
 
 //     await prisma.customers.update({
 //       where: {
-//         id: BigInt(singlecustomer_id),
+//         id: singlecustomer_id,
 //       },
 //       data: {
 //         soft_delete: 1,
@@ -1542,8 +1555,8 @@ exports.getSingleCustomerData = async (req, res) => {
 
 //     await prisma.customeractivities.create({
 //       data: {
-//         customer_id: BigInt(singlecustomer_id),
-//         employee_id: BigInt(employeeId),
+//         customer_id: singlecustomer_id,
+//         employee_id: employeeId,
 //         ca_message: "Customer deleted",
 //         employee_short_name: "D",
 //         color_code: "red",
@@ -1568,14 +1581,14 @@ exports.DeleteCustomer = async (req, res) => {
 
   try {
     const customer = await prisma.customers.findUnique({
-      where: { id: BigInt(singlecustomer_id) },
-      select: { uuid: true, profile_pic_path: true },
+      where: { id: singlecustomer_id },
+      select: { id: true, profile_pic_path: true },
     });
 
     const customerFolder = path.resolve(
       "uploads",
       "customers",
-      `${customer?.uuid}`,
+      `${customer?.id}`,
     );
 
     if (fs.existsSync(customerFolder)) {
@@ -1586,48 +1599,48 @@ exports.DeleteCustomer = async (req, res) => {
     }
 
     await prisma.customeractivities.deleteMany({
-      where: { customer_id: BigInt(singlecustomer_id) },
+      where: { customer_id: singlecustomer_id },
     });
 
     await prisma.customerfilemanager.deleteMany({
-      where: { customer_id: BigInt(singlecustomer_id) },
+      where: { customer_id: singlecustomer_id },
     });
 
     await prisma.customernotes.deleteMany({
-      where: { customer_id: BigInt(singlecustomer_id) },
+      where: { customer_id: singlecustomer_id },
     });
 
     await prisma.customeraddress.deleteMany({
-      where: { customer_id: BigInt(singlecustomer_id) },
+      where: { customer_id: singlecustomer_id },
     });
 
     await prisma.customerflat.deleteMany({
-      where: { customer_id: BigInt(singlecustomer_id) },
+      where: { customer_id: singlecustomer_id },
     });
 
     await prisma.ageingrecord.deleteMany({
-      where: { customer_id: BigInt(singlecustomer_id) },
+      where: { customer_id: singlecustomer_id },
     });
 
     await prisma.refundageingrecord.deleteMany({
-      where: { customer_id: BigInt(singlecustomer_id) },
+      where: { customer_id: singlecustomer_id },
     });
 
     await prisma.rewards.deleteMany({
-      where: { customer_id: BigInt(singlecustomer_id) },
+      where: { customer_id: singlecustomer_id },
     });
 
     await prisma.payments.deleteMany({
-      where: { customer_id: BigInt(singlecustomer_id) },
+      where: { customer_id: singlecustomer_id },
     });
 
     await prisma.flat.updateMany({
-      where: { customer_id: BigInt(singlecustomer_id) },
+      where: { customer_id: singlecustomer_id },
       data: { customer_id: null, status: "Unsold" },
     });
 
     await prisma.customers.delete({
-      where: { id: BigInt(singlecustomer_id) },
+      where: { id: singlecustomer_id },
     });
 
     return res.status(200).json({
@@ -1648,7 +1661,7 @@ exports.DeleteCustomer = async (req, res) => {
 exports.DeleteAllCustomer = async (req, res) => {
   try {
     const customers = await prisma.customers.findMany({
-      select: { id: true, uuid: true },
+      select: { id: true, id: true },
     });
 
     if (!customers || customers.length === 0) {
@@ -1658,13 +1671,13 @@ exports.DeleteAllCustomer = async (req, res) => {
       });
     }
 
-    const customerIds = customers.map((c) => BigInt(c.id));
+    const customerIds = customers.map((c) => c.id);
 
     for (const customer of customers) {
       const customerFolder = path.resolve(
         "uploads",
         "customers",
-        `${customer.uuid}`,
+        `${customer.id}`,
       );
 
       if (fs.existsSync(customerFolder)) {
@@ -1736,11 +1749,13 @@ exports.DeleteAllCustomer = async (req, res) => {
 };
 
 exports.AddCustomernote = async (req, res) => {
-  const { note, user_id, customer_uuid, employeeId } = req.body;
+  const { note, user_id, customer_id, customerId, customer_uuid, employeeId, employee_id } = req.body;
+  const target_customer_id = customer_id || customerId || customer_uuid;
+  const target_employee_id = employeeId || employee_id;
   try {
     const customer = await prisma.customers.findFirst({
       where: {
-        uuid: customer_uuid,
+        id: target_customer_id,
       },
     });
 
@@ -1755,14 +1770,14 @@ exports.AddCustomernote = async (req, res) => {
       data: {
         note_message: note,
         customer_id: customer.id,
-        user_id: parseInt(user_id),
+        user_id: user_id,
       },
     });
 
     await prisma.customeractivities.create({
       data: {
-        customer_id: BigInt(customer.id),
-        employee_id: BigInt(employeeId),
+        customer_id: customer.id,
+        employee_id: target_employee_id,
         ca_message: `Notes Added`,
         employee_short_name: "N",
         color_code: "brown",
@@ -1785,11 +1800,12 @@ exports.AddCustomernote = async (req, res) => {
 };
 
 module.exports.GetCustomerNotes = async (req, res) => {
-  const { customer_uuid } = req.query;
+  const { customer_id, customerId, customer_uuid } = req.query;
+  const target_customer_id = customer_id || customerId || customer_uuid;
 
   try {
     const customer = await prisma.customers.findFirst({
-      where: { uuid: customer_uuid },
+      where: { id: target_customer_id },
     });
 
     if (!customer) {
@@ -1822,12 +1838,12 @@ module.exports.GetCustomerNotes = async (req, res) => {
     });
 
     const serializedCustomernotes = customernotes.map((note) => ({
-      id: note.id.toString(),
+      id: note.id,
       note_message: note.note_message,
       created_at: note.created_at.toISOString(),
       updated_at: note.updated_at ? note.updated_at.toISOString() : null,
       user: {
-        id: note.user.id.toString(),
+        id: note.user.id,
         name: note.user.name,
         profile_pic_url: note.user.profile_pic_url,
       },
@@ -1837,8 +1853,8 @@ module.exports.GetCustomerNotes = async (req, res) => {
       status: "success",
       message: "Notes retrieved successfully",
       customer: {
-        id: customer.id.toString(),
-        uuid: customer.uuid,
+        id: customer.id,
+        id: customer.id,
         notes: serializedCustomernotes,
       },
     });
@@ -1877,8 +1893,8 @@ exports.uploadCustomerProfilePic = async (req, res) => {
 
     try {
       const customer = await prisma.customers.findFirst({
-        where: { id: BigInt(customer_id) },
-        select: { uuid: true, profile_pic_path: true },
+        where: { id: customer_id },
+        select: { id: true, profile_pic_path: true },
       });
 
       if (!customer) {
@@ -1897,7 +1913,7 @@ exports.uploadCustomerProfilePic = async (req, res) => {
       const uploadDir = path.join(
         __dirname,
         "../uploads/customers",
-        `${customer.uuid}`,
+        `${customer.id}`,
       );
       if (!fs.existsSync(uploadDir)) {
         fs.mkdirSync(uploadDir, { recursive: true });
@@ -1917,10 +1933,10 @@ exports.uploadCustomerProfilePic = async (req, res) => {
       fs.copyFileSync(tempFilePath, savedFilePath);
       fs.unlinkSync(tempFilePath);
 
-      const profileUrl = `${process.env.API_URL}/uploads/customers/${customer.uuid}/${profilePicture.originalFilename}`;
+      const profileUrl = `${process.env.API_URL}/uploads/customers/${customer.id}/${profilePicture.originalFilename}`;
 
       await prisma.customers.update({
-        where: { id: BigInt(customer_id) },
+        where: { id: customer_id },
         data: {
           profile_pic_url: profileUrl,
           profile_pic_path: savedFilePath,
@@ -1950,7 +1966,7 @@ exports.searchCustomerForFlats = async (req, res) => {
     const searchCondition = {
       AND: [
         { soft_delete: 0 },
-        ...(project_id ? [{ project_id: BigInt(project_id) }] : []),
+        ...(project_id ? [{ project_id: project_id }] : []),
         ...(searchQuery
           ? [
             {
@@ -1970,7 +1986,7 @@ exports.searchCustomerForFlats = async (req, res) => {
       where: searchCondition,
       select: {
         id: true,
-        uuid: true,
+        id: true,
         profile_pic_url: true,
         first_name: true,
         last_name: true,
@@ -1998,10 +2014,10 @@ exports.searchCustomerForFlats = async (req, res) => {
     const data = flats.map((ele) => {
       const isFlatBooked = ele.Customerflat && ele.Customerflat.length > 0;
       return {
-        value: ele.id.toString(),
+        value: ele.id,
         label: `${ele.first_name} ${ele.last_name}`,
         isFlatBooked,
-        uuid: ele?.uuid,
+        id: ele?.id,
         profile_pic_url: ele?.profile_pic_url,
         first_name: ele?.first_name,
         last_name: ele?.last_name,
@@ -2032,11 +2048,12 @@ exports.searchCustomerForFlats = async (req, res) => {
 };
 
 module.exports.GetCustomerFlats = async (req, res) => {
-  const { customer_uuid } = req.query;
+  const { customer_uuid, customerId } = req.query;
 
   try {
+    const effectiveCustomerId = customerId || customer_uuid;
     const customer = await prisma.customers.findFirst({
-      where: { uuid: customer_uuid },
+      where: { id: effectiveCustomerId },
     });
 
     if (!customer) {
@@ -2055,7 +2072,7 @@ module.exports.GetCustomerFlats = async (req, res) => {
         flat: {
           select: {
             id: true,
-            uuid: true,
+            id: true,
             flat_img_url: true,
             flat_no: true,
             project: {
@@ -2173,10 +2190,10 @@ module.exports.GetCustomerFlats = async (req, res) => {
       };
 
       return {
-        id: note?.id.toString(),
+        id: note?.id,
         flat_details: {
-          id: note?.flat?.id.toString(),
-          uuid: note?.flat?.uuid,
+          id: note?.flat?.id,
+          id: note?.flat?.id,
           flat_img_url: note?.flat?.flat_img_url,
           flat_no: note?.flat?.flat_no,
           project_name: note?.flat?.project?.project_name,
@@ -2194,7 +2211,7 @@ module.exports.GetCustomerFlats = async (req, res) => {
           status: note?.flat?.status,
           totalPayment,
           payment_history: matchingPayments.map((p) => ({
-            id: p.id.toString(),
+            id: p.id,
             date: p.payment_date,
             type: p.payment_type,
             amount: p.amount,
@@ -2235,25 +2252,27 @@ module.exports.GetCustomerFlats = async (req, res) => {
 };
 
 module.exports.CustomerActivities = async (req, res) => {
-  const { customer_uuid, employee_uuid, limit, offset = 0 } = req.query;
+  const { customer_id, customerId, customer_uuid, employeeId, employee_uuid, limit, offset = 0 } = req.query;
+  const target_customer_id = customer_id || customerId || customer_uuid;
+  const target_employee_id = employeeId || employee_uuid;
 
   try {
-    if (!customer_uuid) {
+    if (!target_customer_id) {
       return res.status(400).json({
         status: "error",
-        message: "Customer UUID is required",
+        message: "Customer ID is required",
       });
     }
 
-    if (!employee_uuid) {
+    if (!target_employee_id) {
       return res.status(400).json({
         status: "error",
-        message: "Employee UUID is required",
+        message: "Employee ID is required",
       });
     }
 
     const customer = await prisma.customers.findFirst({
-      where: { uuid: customer_uuid },
+      where: { id: target_customer_id },
       select: { id: true },
     });
 
@@ -2265,7 +2284,7 @@ module.exports.CustomerActivities = async (req, res) => {
     }
 
     const employee = await prisma.employees.findFirst({
-      where: { uuid: employee_uuid },
+      where: { id: target_employee_id },
       select: { id: true },
     });
 
@@ -2278,13 +2297,13 @@ module.exports.CustomerActivities = async (req, res) => {
 
     const totalCount = await prisma.customeractivities.count({
       where: {
-        customer_id: BigInt(customer.id),
+        customer_id: customer.id,
       },
     });
 
     const customerActivities = await prisma.customeractivities.findMany({
       where: {
-        customer_id: BigInt(customer.id),
+        customer_id: customer.id,
       },
       select: {
         id: true,
@@ -2304,19 +2323,19 @@ module.exports.CustomerActivities = async (req, res) => {
       orderBy: {
         created_at: "desc",
       },
-      take: limit ? parseInt(limit) : undefined,
-      skip: parseInt(offset),
+      take: limit ? Number(limit) : undefined,
+      skip: Number(offset),
     });
 
     const activities = customerActivities.map((activity) => ({
-      id: activity.id.toString(),
+      id: activity.id,
       ca_message: activity.ca_message,
       created_at: activity.created_at,
       updated_at: activity.updated_at,
       color_code: activity.color_code,
       employee_short_name: activity.employee_short_name,
       employee: {
-        id: activity.employeedetails.id.toString(),
+        id: activity.employeedetails.id,
         name: activity.employeedetails.name,
         profilePicture: activity.employeedetails.profile_pic_url,
       },
@@ -2327,7 +2346,7 @@ module.exports.CustomerActivities = async (req, res) => {
       message: "Customer activities fetched successfully",
       activities,
       totalCount,
-      hasMore: parseInt(offset) + activities.length < totalCount,
+      hasMore: Number(offset) + activities.length < totalCount,
     });
   } catch (error) {
     logger.error(
@@ -2386,7 +2405,7 @@ exports.GetCustomersList = async (req, res) => {
     });
 
     const formattedCustomers = customers.map((customer) => ({
-      value: customer.id.toString(),
+      value: customer.id,
       label: `${customer.first_name || ""} ${customer.last_name || ""}`.trim(),
     }));
 
@@ -2414,7 +2433,7 @@ exports.GetCustomersForExcel = async (req, res) => {
 
     const searchCondition = {
       soft_delete: 0,
-      ...(projectId && { project_id: BigInt(projectId) }),
+      ...(projectId && { project_id: projectId }),
       ...(!projectId && allocatedProjectIds !== null && {
         project_id: { in: allocatedProjectIds },
       }),
@@ -2449,7 +2468,7 @@ exports.GetCustomersForExcel = async (req, res) => {
 
       select: {
         id: true,
-        uuid: true,
+        id: true,
         prefixes: true,
         first_name: true,
         last_name: true,
@@ -2513,7 +2532,7 @@ exports.GetCustomersForExcel = async (req, res) => {
 
         flats: {
           select: {
-            uuid: true,
+            id: true,
             flat_no: true,
             floor_no: true,
             block_id: true,
@@ -2542,7 +2561,7 @@ exports.GetCustomersForExcel = async (req, res) => {
 
       return {
         id: customer?.id?.toString(),
-        customer_uid: customer?.uuid,
+        customer_id_ref: customer?.id,
         prefixes: customer?.prefixes,
         first_name: customer?.first_name,
         last_name: customer?.last_name,
@@ -2595,7 +2614,7 @@ exports.GetCustomersForExcel = async (req, res) => {
 
         flat_details:
           customer?.flats?.map((flat) => ({
-            uuid: flat?.uuid,
+            id: flat?.id,
             flat_no: flat?.flat_no,
             floor_no: flat?.floor_no,
             flat_img_path: flat?.flat_img_path,
@@ -3093,12 +3112,12 @@ exports.GetCustomersForExcel = async (req, res) => {
 //           }
 
 //           // ✅ Generate UUID
-//           const uuid = "CUST" + Math.floor(100000 + Math.random() * 900000);
+//           // REMOVED: // REMOVED: // REMOVED: const uuid = "CUST" + Math.floor(100000 + Math.random() * 900000);
 
 //           // ✅ Insert Customer
 //           const customer = await prisma.customers.create({
 //             data: {
-//               uuid,
+//
 //               first_name: row["First Name"].trim(),
 //               last_name: row["Last Name"].trim(),
 //               email: row["Email Address"].trim(),
@@ -3304,7 +3323,7 @@ exports.uploadParsedCustomers = async (req, res) => {
             throw new Error("Phone number is not valid (must be 10 digits)");
           }
           const phoneExists = await prisma.customers.findFirst({
-            where: { phone_number: phone, project_id: projectId ? BigInt(projectId) : undefined },
+            where: { phone_number: phone, project_id: projectId ? projectId : undefined },
           });
           if (phoneExists) {
             throw new Error("Phone number already exists");
@@ -3386,7 +3405,7 @@ exports.uploadParsedCustomers = async (req, res) => {
               });
               if (!country)
                 return { error: `Country '${countryName}' not found` };
-              countryId = Number(country.id);
+              countryId = country.id;
             }
 
             if (stateName) {
@@ -3440,7 +3459,7 @@ exports.uploadParsedCustomers = async (req, res) => {
               },
             });
 
-            return country ? Number(country.id) : null;
+            return country ? country.id : null;
           };
 
           // inside the for (const row of data) loop, just before creating customer
@@ -3457,12 +3476,11 @@ exports.uploadParsedCustomers = async (req, res) => {
           }
 
           // ✅ Generate UUID
-          const uuid = "CUST" + Math.floor(100000 + Math.random() * 900000);
+          // REMOVED: // REMOVED: // REMOVED: const uuid = "CUST" + Math.floor(100000 + Math.random() * 900000);
 
           // ✅ Insert Customer
           const customer = await prisma.customers.create({
             data: {
-              uuid,
               prefixes: row["Prefixes"] || null,
               first_name: row["First Name"].toString().trim(),
               last_name: row["Last Name"].toString().trim(),
@@ -3509,7 +3527,7 @@ exports.uploadParsedCustomers = async (req, res) => {
                   ?.toString()
                   .toLowerCase() === "yes",
               if_owned_project_name: row["If Yes, Project Name"] || null,
-              added_by_employee_id: BigInt(employee_id),
+              added_by_employee_id: employee_id,
               project_id: projectId, // ✅ Add Project ID
             },
           });
@@ -3550,7 +3568,7 @@ exports.uploadParsedCustomers = async (req, res) => {
           if (row["Current Designation"]) {
             await prisma.profession.create({
               data: {
-                customer_id: BigInt(customer?.id),
+                customer_id: customer?.id,
                 current_designation: row["Current Designation"] || null,
                 name_of_current_organization:
                   row["Current Organization"] || null,
@@ -3568,9 +3586,9 @@ exports.uploadParsedCustomers = async (req, res) => {
 
           await prisma.customeractivities.create({
             data: {
-              customer_id: BigInt(customer.id),
+              customer_id: customer.id,
               ca_message: "Customer created via bulk upload",
-              employee_id: BigInt(employee_id),
+              employee_id: employee_id,
             },
           });
 
@@ -3600,18 +3618,19 @@ exports.uploadParsedCustomers = async (req, res) => {
 };
 
 exports.ConvertCustomerToLead = async (req, res) => {
-  const { customerUuid, employee_id } = req.body;
+  const { customerUuid, customerId, employee_id } = req.body;
 
   try {
-    if (!customerUuid) {
+    const effectiveCustomerId = customerId || customerUuid;
+    if (!effectiveCustomerId) {
       return res
         .status(200)
-        .json({ status: "error", message: "Customer UUID is required" });
+        .json({ status: "error", message: "Customer id is required" });
     }
 
     // Get customer details including relations
     const customer = await prisma.customers.findUnique({
-      where: { uuid: customerUuid },
+      where: { id: effectiveCustomerId },
       include: {
         flats: true,
         Profession: true,
@@ -3708,7 +3727,7 @@ exports.ConvertCustomerToLead = async (req, res) => {
     };
 
     // Prepare folders
-    const customerFolder = path.resolve("uploads", "customers", `${customer.uuid}`);
+    const customerFolder = path.resolve("uploads", "customers", `${customer.id}`);
     const leadFolder = path.resolve("uploads", "leads", `${leadUuid}`);
 
     // Copy physical files if exists
@@ -3721,7 +3740,7 @@ exports.ConvertCustomerToLead = async (req, res) => {
     // 1) Create Lead
     const newLead = await prisma.leads.create({
       data: {
-        uuid: leadUuid,
+        id: leadUuid,
         prefixes: customer.prefixes,
         full_name: `${customer.first_name} ${customer.last_name}`.trim(),
         email: customer.email || null,
@@ -3756,8 +3775,8 @@ exports.ConvertCustomerToLead = async (req, res) => {
         lead_stage_id: returnedStage.id, // Assign the 'Returned' stage ID
         status: "Active",
         added_by_employee_id: customer.added_by_employee_id,
-        profile_pic_url: replaceCustomerToLeadInPath(customer.profile_pic_url, customer.uuid, leadUuid),
-        profile_pic_path: replaceCustomerToLeadInPath(customer.profile_pic_path, customer.uuid, leadUuid),
+        profile_pic_url: replaceCustomerToLeadInPath(customer.profile_pic_url, customer.id, leadUuid),
+        profile_pic_path: replaceCustomerToLeadInPath(customer.profile_pic_path, customer.id, leadUuid),
         created_at: customer.created_at,
       },
     });
@@ -3827,13 +3846,13 @@ exports.ConvertCustomerToLead = async (req, res) => {
     if (customer.Customerfilemanager.length > 0) {
       await prisma.leadsfilemanager.createMany({
         data: customer.Customerfilemanager.map((f) => ({
-          uuid: f.uuid,
+          id: f.id,
           name: f.name,
           file_icon_type: f.file_icon_type,
           file_type: f.file_type,
           file_size: f.file_size,
-          file_path: replaceCustomerToLeadInPath(f.file_path, customer.uuid, leadUuid),
-          file_url: replaceCustomerToLeadInPath(f.file_url, customer.uuid, leadUuid),
+          file_path: replaceCustomerToLeadInPath(f.file_path, customer.id, leadUuid),
+          file_url: replaceCustomerToLeadInPath(f.file_url, customer.id, leadUuid),
           parent_id: f.parent_id,
           lead_id: newLead.id,
           added_by: f.added_by,
@@ -3882,7 +3901,7 @@ exports.uploadCostSheet = async (req, res) => {
       return res.status(500).json({ status: "error", message: err.message });
     }
 
-    if (!fields.flat_id?.[0] || !fields.customer_flat_id?.[0] || !fields.flat_uuid?.[0] || !fields.employee_id?.[0] || !files.uploadfile?.[0]) {
+    if (!fields.flat_id?.[0] || !fields.customer_flat_id?.[0] || !fields.id?.[0] || !fields.employee_id?.[0] || !files.uploadfile?.[0]) {
       return res.status(200).json({
         status: "error",
         message: "Missing required fields (flat_id, customer_flat_id, flat_uuid, employee_id, uploadfile)",
@@ -3891,13 +3910,13 @@ exports.uploadCostSheet = async (req, res) => {
 
     const flat_id = fields.flat_id[0];
     const customer_flat_id = fields.customer_flat_id[0];
-    const flat_uid = fields.flat_uuid[0];
+    const flat_uid = fields.id[0];
     const employee_id = fields.employee_id[0];
     const uploadedFile = files.uploadfile[0];
 
     try {
       const flatdetails = await prisma.flat.findFirst({
-        where: { uuid: flat_uid },
+        where: { id: flat_uid },
       });
 
       if (!flatdetails) {
@@ -3933,9 +3952,29 @@ exports.uploadCostSheet = async (req, res) => {
       const file_url = `${process.env.API_URL}/uploads/flats/${flat_uid}/cost_sheets/${newFilename}`;
       const file_path = `cost_sheets/${newFilename}`;
 
+      // Find existing customerflat to delete old file if it exists
+      const existingCustomerFlat = await prisma.customerflat.findUnique({
+        where: { id: customer_flat_id },
+      });
+
+      if (existingCustomerFlat && existingCustomerFlat.cost_sheet_path) {
+        const oldFilePath = path.join(maindir, existingCustomerFlat.cost_sheet_path);
+        if (fs.existsSync(oldFilePath)) {
+          fs.unlinkSync(oldFilePath);
+        }
+
+        // Delete the old file from flatfilemanager
+        await prisma.flatfilemanager.deleteMany({
+          where: {
+            file_path: existingCustomerFlat.cost_sheet_path,
+            flat_id: flat_uid,
+          },
+        });
+      }
+
       // Update Customerflat
       await prisma.customerflat.update({
-        where: { id: BigInt(customer_flat_id) },
+        where: { id: customer_flat_id },
         data: {
           cost_sheet_url: file_url,
           cost_sheet_path: file_path
@@ -3947,14 +3986,14 @@ exports.uploadCostSheet = async (req, res) => {
       await prisma.flatfilemanager.create({
         data: {
           name: originalFilename,
-          uuid: fileUid,
+          id: fileUid,
           file_type: "pdf",
           file_url: file_url,
           file_icon_type: "pdf_icon",
           file_path: file_path,
           parent_id: null,
           flat_id: flatdetails.id,
-          added_by: parseInt(employee_id),
+          added_by: employee_id,
           created_at: new Date(),
           updated_at: new Date(),
         },
@@ -3963,8 +4002,8 @@ exports.uploadCostSheet = async (req, res) => {
       // Add to Customerflatupdateactivities
       await prisma.customerflatupdateactivities.create({
         data: {
-          customerflat_id: BigInt(customer_flat_id),
-          employee_id: BigInt(employee_id),
+          customerflat_id: customer_flat_id,
+          employee_id: employee_id,
           message: `• Uploaded new Cost Sheet: ${originalFilename}`,
           created_at: new Date(),
         },
@@ -3973,7 +4012,7 @@ exports.uploadCostSheet = async (req, res) => {
       // Also log in flat task activities
       await prisma.taskactivities.create({
         data: {
-          employee_id: BigInt(employee_id),
+          employee_id: employee_id,
           flat_id: flatdetails.id,
           ta_message: `Cost Sheet uploaded: ${originalFilename}`,
           employee_short_name: "F",

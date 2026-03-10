@@ -10,7 +10,7 @@ exports.getProject = async (req, res) => {
         const userId = req.user.id;
 
         const employee = await prisma.employees.findUnique({
-            where: { id: BigInt(userId) },
+            where: { id: userId },
             include: {
                 roledetails: true,
                 project_permissions: {
@@ -31,7 +31,6 @@ exports.getProject = async (req, res) => {
                     project_name: true,
                     project_address: true,
                     project_rewards: true,
-                    uuid: true,
                 },
                 orderBy: {
                     created_at: 'desc'
@@ -44,7 +43,7 @@ exports.getProject = async (req, res) => {
 
         const projectDetails = projectData
             ? {
-                id: projectData?.id?.toString(),
+                id: projectData?.id,
                 project_name: projectData?.project_name,
                 project_address: projectData?.project_address,
                 project_corner_price: projectData?.project_corner_price,
@@ -60,7 +59,6 @@ exports.getProject = async (req, res) => {
                 maintenance_duration_months: projectData?.maintenance_duration_months,
                 corpus_fund: projectData?.corpus_fund,
                 project_rewards: projectData?.project_rewards,
-                uuid: projectData?.uuid,
             }
             : {};
 
@@ -83,7 +81,7 @@ exports.getAllProjects = async (req, res) => {
         const userId = req.user.id;
 
         const employee = await prisma.employees.findUnique({
-            where: { id: BigInt(userId) },
+            where: { id: userId },
             include: {
                 roledetails: true,
                 project_permissions: {
@@ -110,8 +108,7 @@ exports.getAllProjects = async (req, res) => {
         }
 
         const projectList = projects.map(p => ({
-            id: p.id.toString(),
-            uuid: p.uuid,
+            id: p.id,
             project_name: p.project_name,
             project_address: p.project_address,
             project_corner_price: p.project_corner_price,
@@ -155,7 +152,7 @@ exports.addProject = async (req, res) => {
 
         await prisma.project.create({
             data: {
-                uuid: newUuid,
+                id: newUuid,
                 project_name,
                 project_address,
                 project_corner_price: parseInt(project_corner_price) || 0,
@@ -190,18 +187,18 @@ exports.addProject = async (req, res) => {
 
 exports.updateProject = async (req, res) => {
     const {
-        project_name, project_address, project_corner_price, project_east_price, project_six_floor_onwards_price, project_rewards, uuid,
+        project_name, project_address, project_corner_price, project_east_price, project_six_floor_onwards_price, project_rewards,
         gst_percentage, manjeera_connection_charges, manjeera_meter_charges, documentation_fee, registration_percentage,
         registration_base_charge, maintenance_rate_per_sqft, maintenance_duration_months, corpus_fund
     } = req.body;
 
     try {
-        if (!uuid) {
+        if (!id) {
             const newUuid = "PROJ" + Math.floor(100000000 + Math.random() * 900000000).toString();
 
             await prisma.project.create({
                 data: {
-                    uuid: newUuid,
+                    id: newUuid,
                     project_name,
                     project_address,
                     project_corner_price: parseInt(project_corner_price) || 0,
@@ -228,7 +225,7 @@ exports.updateProject = async (req, res) => {
         }
 
         const existingProject = await prisma.project.findUnique({
-            where: { uuid },
+            where: { id },
         });
 
         if (!existingProject) {
@@ -239,7 +236,7 @@ exports.updateProject = async (req, res) => {
         }
 
         await prisma.project.update({
-            where: { uuid },
+            where: { id },
             data: {
                 project_name,
                 project_address,
@@ -274,13 +271,13 @@ exports.updateProject = async (req, res) => {
 };
 
 exports.deleteProject = async (req, res) => {
-    const { uuid } = req.body;
+    const { id } = req.body;
 
     try {
-        if (!uuid) {
+        if (!id) {
             return res.status(400).json({
                 status: "error",
-                message: "Project UUID is required",
+                message: "Project ID is required",
             });
         }
 
@@ -288,7 +285,7 @@ exports.deleteProject = async (req, res) => {
         // For now, we will just attempt delete and let Prisma constraints handle it if foreign keys exist
         // Or specific check:
         const hasBlocks = await prisma.block.findFirst({
-            where: { project: { uuid: uuid } }
+            where: { project: { id: id } }
         });
 
         if (hasBlocks) {
@@ -299,7 +296,7 @@ exports.deleteProject = async (req, res) => {
         }
 
         await prisma.project.delete({
-            where: { uuid },
+            where: { id },
         });
 
         return res.status(200).json({
@@ -321,14 +318,13 @@ exports.getMyAllocatedProjects = async (req, res) => {
 
         // Find employee and their allocated projects
         const employee = await prisma.employees.findUnique({
-            where: { id: BigInt(userId) },
+            where: { id: userId },
             include: {
                 project_permissions: {
                     include: {
                         project: {
                             select: {
                                 id: true,
-                                uuid: true,
                                 project_name: true,
                                 project_address: true,
                                 project_rewards: true,
@@ -360,15 +356,13 @@ exports.getMyAllocatedProjects = async (req, res) => {
                 },
                 select: {
                     id: true,
-                    uuid: true,
                     project_name: true,
                     project_address: true,
                     project_rewards: true,
                 }
             });
             projectList = allProjects.map(p => ({
-                id: p.id.toString(),
-                uuid: p.uuid,
+                id: p.id,
                 project_name: p.project_name,
                 project_address: p.project_address,
                 project_rewards: p.project_rewards
@@ -378,8 +372,7 @@ exports.getMyAllocatedProjects = async (req, res) => {
             projectList = employee.project_permissions
                 .filter(p => p.project) // Guard against null projects
                 .map(p => ({
-                    id: p.project.id.toString(),
-                    uuid: p.project.uuid,
+                    id: p.project.id,
                     project_name: p.project.project_name,
                     project_address: p.project.project_address,
                     project_rewards: p.project.project_rewards
@@ -429,7 +422,6 @@ exports.getBlock = async (req, res) => {
                 id: true,
                 block_name: true,
                 project_id: true,
-                uuid: true,
             },
             take: parseInt(limit),
             skip: offset,
@@ -444,10 +436,9 @@ exports.getBlock = async (req, res) => {
 
 
         const blockDetails = blockData.map((ele) => ({
-            id: ele?.id?.toString(),
+            id: ele?.id,
             block_name: ele?.block_name,
-            project_id: ele?.project_id?.toString(),
-            uuid: ele?.uuid,
+            project_id: ele?.project_id,
         }));
 
         return res.status(200).json({
@@ -500,7 +491,7 @@ exports.addBlock = async (req, res) => {
 
         await prisma.block.create({
             data: {
-                uuid: newUuid,
+                id: newUuid,
                 block_name: block_name,
                 project_id: getProjectId.id,
             },
@@ -520,11 +511,11 @@ exports.addBlock = async (req, res) => {
 };
 
 exports.updateBlock = async (req, res) => {
-    const { block_name, uuid } = req.body;
+    const { block_name, id } = req.body;
 
     try {
         const existingBlock = await prisma.block.findFirst({
-            where: { uuid },
+            where: { id },
         });
 
         if (!existingBlock) {
@@ -541,7 +532,7 @@ exports.updateBlock = async (req, res) => {
                         equals: block_name,
                     },
                     NOT: {
-                        uuid: uuid,
+                        id: existingBlock.id,
                     },
                 },
             });
@@ -555,7 +546,7 @@ exports.updateBlock = async (req, res) => {
         }
 
         await prisma.block.update({
-            where: { uuid },
+            where: { id },
             data: {
                 block_name: block_name || existingBlock.block_name,
                 project_id: existingBlock.project_id,
@@ -588,7 +579,7 @@ exports.deleteBlock = async (req, res) => {
 
         const existingBlock = await prisma.block.findUnique({
             where: {
-                id: parseInt(block_id)
+                id: block_id
             }
         });
 
@@ -601,7 +592,7 @@ exports.deleteBlock = async (req, res) => {
 
         const deletedBlock = await prisma.block.delete({
             where: {
-                id: parseInt(block_id)
+                id: block_id
             }
         });
 
@@ -625,7 +616,6 @@ exports.getBlocksLabel = async (req, res) => {
             select: {
                 id: true,
                 block_name: true,
-                uuid: true,
             },
             orderBy: {
                 block_name: "asc",
@@ -635,8 +625,8 @@ exports.getBlocksLabel = async (req, res) => {
 
         const blockLabels = blocks.map(block => ({
             label: block.block_name,
-            value: block.id.toString(),
-            id: block.id.toString(),
+            value: block.id,
+            id: block.id,
         }));
 
         return res.status(200).json({
@@ -668,7 +658,7 @@ exports.getAllBlocksNames = async (req, res) => {
 
         const blockNames = blocks.map(block => ({
             name: block.block_name,
-            id: block.id.toString(),
+            id: block.id,
         }));
 
         return res.status(200).json({

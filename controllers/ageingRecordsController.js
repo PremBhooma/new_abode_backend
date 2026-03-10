@@ -126,7 +126,7 @@ exports.GetAgeingRecords = async (req, res) => {
         flat: {
           select: {
             id: true,
-            uuid: true,
+            id: true,
             flat_no: true,
             floor_no: true,
             block: { select: { block_name: true } },
@@ -135,7 +135,7 @@ exports.GetAgeingRecords = async (req, res) => {
         customer: {
           select: {
             id: true,
-            uuid: true,
+            id: true,
             first_name: true,
             last_name: true,
             phone_code: true,
@@ -152,7 +152,7 @@ exports.GetAgeingRecords = async (req, res) => {
     });
 
     // 6. Re-sort details to match the ID order (since 'IN' query does not preserve order)
-    const recordsMap = new Map(ageingRecordsDetails.map(r => [r.id.toString(), r]));
+    const recordsMap = new Map(ageingRecordsDetails.map(r => [r.id, r]));
     const orderedDetails = paginatedIds.map(id => recordsMap.get(id.toString())).filter(Boolean);
 
 
@@ -190,14 +190,14 @@ exports.GetAgeingRecords = async (req, res) => {
         updated_at: record?.updated_at,
         flat: record?.flat ? {
           id: record?.flat?.id?.toString(),
-          uuid: record?.flat?.uuid,
+          id: record?.flat?.id,
           flat_no: record?.flat?.flat_no,
           floor_no: record?.flat?.floor_no,
           block_name: record?.flat?.block?.block_name,
         } : null,
         customer: record?.customer ? {
           id: record?.customer?.id?.toString(),
-          uuid: record?.customer?.uuid,
+          id: record?.customer?.id,
           first_name: record?.customer?.first_name,
           last_name: record?.customer?.last_name,
           full_name: `${record?.customer?.first_name || ""} ${record?.customer?.last_name || ""}`.trim(),
@@ -318,7 +318,7 @@ exports.GetDashboardAgeingRecords = async (req, res) => {
         flat: {
           select: {
             id: true,
-            uuid: true,
+            id: true,
             flat_no: true,
             floor_no: true,
             block: { select: { block_name: true } },
@@ -327,7 +327,7 @@ exports.GetDashboardAgeingRecords = async (req, res) => {
         customer: {
           select: {
             id: true,
-            uuid: true,
+            id: true,
             first_name: true,
             last_name: true,
             phone_code: true,
@@ -344,7 +344,7 @@ exports.GetDashboardAgeingRecords = async (req, res) => {
     });
 
     // 6. Re-sort details
-    const recordsMap = new Map(ageingRecordsDetails.map(r => [r.id.toString(), r]));
+    const recordsMap = new Map(ageingRecordsDetails.map(r => [r.id, r]));
     const orderedDetails = topIds.map(id => recordsMap.get(id.toString())).filter(Boolean);
 
     // Process/Format
@@ -357,7 +357,7 @@ exports.GetDashboardAgeingRecords = async (req, res) => {
       }
 
       return {
-        id: record.id.toString(),
+        id: record.id,
         flat_id: record.flat_id?.toString(),
         customer_id: record.customer_id?.toString(),
         booking_date: record.booking_date,
@@ -375,16 +375,16 @@ exports.GetDashboardAgeingRecords = async (req, res) => {
         updated_at: record.updated_at,
 
         flat: record.flat && {
-          id: record.flat.id.toString(),
-          uuid: record.flat.uuid,
+          id: record.flat.id,
+          id: record.flat.id,
           flat_no: record.flat.flat_no,
           floor_no: record.flat.floor_no,
           block_name: record.flat.block?.block_name,
         },
 
         customer: record.customer && {
-          id: record.customer.id.toString(),
-          uuid: record.customer.uuid,
+          id: record.customer.id,
+          id: record.customer.id,
           first_name: record.customer.first_name,
           last_name: record.customer.last_name,
           full_name: `${record.customer.first_name || ""} ${record.customer.last_name || ""}`.trim(),
@@ -394,7 +394,7 @@ exports.GetDashboardAgeingRecords = async (req, res) => {
         },
 
         project: record.project && {
-          id: record.project.id.toString(),
+          id: record.project.id,
           project_name: record.project.project_name,
         },
       };
@@ -429,13 +429,13 @@ exports.GetSingleAgeingRecord = async (req, res) => {
 
     const ageingRecord = await prisma.ageingrecord.findUnique({
       where: {
-        id: BigInt(id),
+        id: id,
       },
       include: {
         flat: {
           select: {
             id: true,
-            uuid: true,
+            id: true,
             flat_no: true,
             floor_no: true,
             block: {
@@ -448,7 +448,7 @@ exports.GetSingleAgeingRecord = async (req, res) => {
         customer: {
           select: {
             id: true,
-            uuid: true,
+            id: true,
             first_name: true,
             last_name: true,
             phone_code: true,
@@ -551,14 +551,14 @@ exports.GetSingleAgeingRecord = async (req, res) => {
       refund_status: !!latestRefund,
       flat: ageingRecord?.flat ? {
         id: ageingRecord?.flat?.id?.toString(),
-        uuid: ageingRecord?.flat?.uuid,
+        id: ageingRecord?.flat?.id,
         flat_no: ageingRecord?.flat?.flat_no,
         floor_no: ageingRecord?.flat?.floor_no,
         block_name: ageingRecord?.flat?.block?.block_name,
       } : null,
       customer: ageingRecord?.customer ? {
         id: ageingRecord?.customer?.id?.toString(),
-        uuid: ageingRecord?.customer?.uuid,
+        id: ageingRecord?.customer?.id,
         first_name: ageingRecord?.customer?.first_name,
         last_name: ageingRecord?.customer?.last_name,
         full_name: `${ageingRecord?.customer?.first_name || ""} ${ageingRecord?.customer?.last_name || ""}`.trim(),
@@ -612,7 +612,7 @@ exports.UpdateLoanStatus = async (req, res) => {
 
     const existingRecord = await prisma.ageingrecord.findUnique({
       where: {
-        id: BigInt(id),
+        id: id,
       },
     });
 
@@ -627,7 +627,7 @@ exports.UpdateLoanStatus = async (req, res) => {
     if (loan_Status === "Rejected") {
       // 1. Update Ageing Record (set status, clear customer_flat link to avoid FK issues during deletion)
       const updatedRecord = await prisma.ageingrecord.update({
-        where: { id: BigInt(id) },
+        where: { id: id },
         data: {
           loan_Status: "Rejected",
           customer_flat: null, // Unlink to allow deletion
@@ -638,7 +638,7 @@ exports.UpdateLoanStatus = async (req, res) => {
       // 2. Update Customer (loan_rejected = true)
       if (existingRecord.customer_id) {
         await prisma.customers.update({
-          where: { id: BigInt(existingRecord.customer_id) },
+          where: { id: existingRecord.customer_id },
           data: { loan_rejected: true },
         });
       }
@@ -646,7 +646,7 @@ exports.UpdateLoanStatus = async (req, res) => {
       // 3. Update Flat (Unassign customer and set status to Unsold)
       if (existingRecord.flat_id) {
         await prisma.flat.update({
-          where: { id: BigInt(existingRecord.flat_id) },
+          where: { id: existingRecord.flat_id },
           data: {
             customer_id: null,
             status: "Unsold"
@@ -659,7 +659,7 @@ exports.UpdateLoanStatus = async (req, res) => {
       if (existingRecord.flat_id) {
         try {
           await prisma.customerflat.deleteMany({
-            where: { flat_id: BigInt(existingRecord.flat_id) },
+            where: { flat_id: existingRecord.flat_id },
           });
         } catch (delError) {
           logger.error(`Error deleting customerflat: ${delError.message}`);
@@ -670,7 +670,7 @@ exports.UpdateLoanStatus = async (req, res) => {
         status: "success",
         message: "Loan rejected and flat unassigned successfully",
         record: {
-          id: updatedRecord.id.toString(),
+          id: updatedRecord.id,
           loan_Status: updatedRecord.loan_Status,
           flat_id: updatedRecord.flat_id?.toString(),
           customer_id: updatedRecord.customer_id?.toString(),
@@ -682,7 +682,7 @@ exports.UpdateLoanStatus = async (req, res) => {
 
     const updatedRecord = await prisma.ageingrecord.update({
       where: {
-        id: BigInt(id),
+        id: id,
       },
       data: {
         loan_Status: loan_Status !== undefined ? loan_Status : existingRecord.loan_Status,
@@ -741,7 +741,7 @@ exports.UpdateLoanStatus = async (req, res) => {
 
 //     const existingRecord = await prisma.ageingrecord.findUnique({
 //       where: {
-//         id: BigInt(id),
+//         id: id,
 //       },
 //     });
 
@@ -754,7 +754,7 @@ exports.UpdateLoanStatus = async (req, res) => {
 
 //     const updatedRecord = await prisma.ageingrecord.update({
 //       where: {
-//         id: BigInt(id),
+//         id: id,
 //       },
 //       data: {
 //         booking_date: booking_date ? new Date(booking_date) : existingRecord.booking_date,
@@ -798,7 +798,7 @@ exports.DeleteAgeingRecord = async (req, res) => {
 
     const existingRecord = await prisma.ageingrecord.findUnique({
       where: {
-        id: BigInt(id),
+        id: id,
       },
     });
 
@@ -811,7 +811,7 @@ exports.DeleteAgeingRecord = async (req, res) => {
 
     await prisma.ageingrecord.delete({
       where: {
-        id: BigInt(id),
+        id: id,
       },
     });
 
@@ -839,7 +839,7 @@ exports.DeleteAgeingRecord = async (req, res) => {
 //       });
 //     }
 
-//     const bigIntIds = ids.map(id => BigInt(id));
+//     const bigIntIds = ids.map(id => id);
 
 //     await prisma.ageingrecord.deleteMany({
 //       where: {
@@ -1011,7 +1011,7 @@ exports.GetCancellationDetails = async (req, res) => {
     }
 
     const ageingRecord = await prisma.ageingrecord.findUnique({
-      where: { id: BigInt(ageing_id) },
+      where: { id: ageing_id },
       select: { created_at: true }
     });
 
@@ -1023,16 +1023,16 @@ exports.GetCancellationDetails = async (req, res) => {
 
     const payments = await prisma.payments.findMany({
       where: {
-        flat_id: BigInt(flat_id),
-        customer_id: BigInt(customer_id),
+        flat_id: flat_id,
+        customer_id: customer_id,
         created_at: { gte: creationDate }
       }
     });
 
     const refunds = await prisma.refundageingrecord.findMany({
       where: {
-        flat_id: BigInt(flat_id),
-        customer_id: BigInt(customer_id),
+        flat_id: flat_id,
+        customer_id: customer_id,
         created_at: { gte: creationDate }
       }
     });
@@ -1064,7 +1064,7 @@ exports.ProcessAgeingCancellation = async (req, res) => {
     }
 
     const ageingRecord = await prisma.ageingrecord.findUnique({
-      where: { id: BigInt(ageing_id) },
+      where: { id: ageing_id },
       select: { created_at: true }
     });
 
@@ -1078,15 +1078,15 @@ exports.ProcessAgeingCancellation = async (req, res) => {
       // Fetch current paid and refunded for this specific instance
       const payments = await tx.payments.findMany({
         where: {
-          flat_id: BigInt(flat_id),
-          customer_id: BigInt(customer_id),
+          flat_id: flat_id,
+          customer_id: customer_id,
           created_at: { gte: creationDate }
         }
       });
       const refunds = await tx.refundageingrecord.findMany({
         where: {
-          flat_id: BigInt(flat_id),
-          customer_id: BigInt(customer_id),
+          flat_id: flat_id,
+          customer_id: customer_id,
           created_at: { gte: creationDate }
         }
       });
@@ -1111,9 +1111,9 @@ exports.ProcessAgeingCancellation = async (req, res) => {
       if (currentRefundAmount > 0 || refund_transactionid) {
         await tx.refundageingrecord.create({
           data: {
-            project_id: project_id ? BigInt(project_id) : null,
-            flat_id: BigInt(flat_id),
-            customer_id: BigInt(customer_id),
+            project_id: project_id ? project_id : null,
+            flat_id: flat_id,
+            customer_id: customer_id,
             refund_amount: currentRefundAmount,
             refund_date: refund_date ? new Date(refund_date) : new Date(),
             refund_transactionid: refund_transactionid || "",
@@ -1124,7 +1124,7 @@ exports.ProcessAgeingCancellation = async (req, res) => {
 
       // Update Ageing Record Status to Cancelled instead of deleting
       await tx.ageingrecord.update({
-        where: { id: BigInt(ageing_id) },
+        where: { id: ageing_id },
         data: {
           loan_Status: 'Cancelled',
           updated_at: new Date()
@@ -1138,14 +1138,14 @@ exports.ProcessAgeingCancellation = async (req, res) => {
         // Delete CustomerFlat
         await tx.customerflat.deleteMany({
           where: {
-            flat_id: BigInt(flat_id),
-            customer_id: BigInt(customer_id)
+            flat_id: flat_id,
+            customer_id: customer_id
           }
         });
 
         // Update Flat -> Unsold, customer_id = null
         await tx.flat.update({
-          where: { id: BigInt(flat_id) },
+          where: { id: flat_id },
           data: {
             status: "Unsold",
             customer_id: null
@@ -1155,8 +1155,8 @@ exports.ProcessAgeingCancellation = async (req, res) => {
         // Delete only payments from this specific sale instance
         await tx.payments.deleteMany({
           where: {
-            flat_id: BigInt(flat_id),
-            customer_id: BigInt(customer_id),
+            flat_id: flat_id,
+            customer_id: customer_id,
             created_at: { gte: creationDate }
           }
         });
@@ -1223,7 +1223,7 @@ exports.GetRefundRecords = async (req, res) => {
 
     const records = refundRecords.map(record => ({
       ...record,
-      id: record.id.toString(),
+      id: record.id,
       flat_id: record.flat_id?.toString(),
       customer_id: record.customer_id?.toString(),
       project_id: record.project_id?.toString(),
@@ -1403,7 +1403,7 @@ exports.GetPartialCancelledAgeingRecords = async (req, res) => {
         flat: {
           select: {
             id: true,
-            uuid: true,
+            id: true,
             flat_no: true,
             floor_no: true,
             block: {
@@ -1416,7 +1416,7 @@ exports.GetPartialCancelledAgeingRecords = async (req, res) => {
         customer: {
           select: {
             id: true,
-            uuid: true,
+            id: true,
             first_name: true,
             last_name: true,
             phone_code: true,
@@ -1466,14 +1466,14 @@ exports.GetPartialCancelledAgeingRecords = async (req, res) => {
         updated_at: record?.updated_at,
         flat: record?.flat ? {
           id: record?.flat?.id?.toString(),
-          uuid: record?.flat?.uuid,
+          id: record?.flat?.id,
           flat_no: record?.flat?.flat_no,
           floor_no: record?.flat?.floor_no,
           block_name: record?.flat?.block?.block_name,
         } : null,
         customer: record?.customer ? {
           id: record?.customer?.id?.toString(),
-          uuid: record?.customer?.uuid,
+          id: record?.customer?.id,
           first_name: record?.customer?.first_name,
           last_name: record?.customer?.last_name,
           full_name: `${record?.customer?.first_name || ""} ${record?.customer?.last_name || ""}`.trim(),

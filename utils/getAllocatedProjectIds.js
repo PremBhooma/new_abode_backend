@@ -11,7 +11,7 @@ const prisma = require("./client");
  */
 async function getAllocatedProjectIds(userId) {
     const employee = await prisma.employees.findUnique({
-        where: { id: BigInt(userId) },
+        where: { id: userId },
         include: {
             roledetails: true,
             project_permissions: {

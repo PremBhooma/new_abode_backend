@@ -39,7 +39,7 @@ const AdminLogin = async (req, res) => {
       });
     }
 
-    let employee_id = employee.id.toString();
+    let employee_id = employee.id;
     const role_name = await prisma.roles.findFirst({
       where: {
         id: employee.role_id,
@@ -52,7 +52,7 @@ const AdminLogin = async (req, res) => {
     let role_id;
     let permissions = {};
     if (employee.role_id !== null) {
-      role_id = employee.role_id.toString();
+      role_id = employee.role_id;
       const permissionsdata = await prisma.rolepermissions.findFirst({
         where: {
           role_id: role_id,
@@ -70,11 +70,10 @@ const AdminLogin = async (req, res) => {
       role_id = null;
     }
 
-    const access_token = jwt.sign({ id: employee.id.toString() }, process.env.JWT_TOKEN_SECRET, { expiresIn: "7d" });
+    const access_token = jwt.sign({ id: employee.id }, process.env.JWT_TOKEN_SECRET, { expiresIn: "7d" });
 
     const employeeData = {
-      id: employee.id.toString(),
-      uuid: employee.uuid,
+      id: employee.id,
       name: employee.name,
       email: employee.email,
       phone_code: employee.phone_code,

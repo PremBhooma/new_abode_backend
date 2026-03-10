@@ -91,7 +91,7 @@ exports.AddLead = async (req, res) => {
       where: {
         phone_code,
         phone_number,
-        project_id: project_id ? BigInt(project_id) : undefined,
+        project_id: project_id ? project_id : undefined,
       },
     });
     if (existingPhone) {
@@ -101,7 +101,7 @@ exports.AddLead = async (req, res) => {
       });
     }
 
-    const uuid = "ABODE" + Math.floor(100000 + Math.random() * 900000);
+    // REMOVED: // REMOVED: // REMOVED: const uuid = "ABODE" + Math.floor(100000 + Math.random() * 900000);
 
     let stageIdToConnect = null;
     if (lead_stage_id) {
@@ -120,16 +120,15 @@ exports.AddLead = async (req, res) => {
     const lead = await prisma.leads.create({
       data: {
         // ... (existing fields)
-        uuid,
         prefixes,
         full_name,
         email: normalizedEmail,
         email_2: normalizedEmail2,
         phone_code,
         phone_number,
-        // assigned_to_employee_id: BigInt(employee_id) || null,
+        // assigned_to_employee_id: employee_id || null,
         assigned_to: employee_id
-          ? { connect: { id: BigInt(employee_id) } }
+          ? { connect: { id: employee_id } }
           : undefined,
         source_of_lead: sourse_of_lead || null,
         gender,
@@ -149,10 +148,10 @@ exports.AddLead = async (req, res) => {
         pan_card_no,
         aadhar_card_no,
         country_of_citizenship_details: country_of_citizenship
-          ? { connect: { id: BigInt(country_of_citizenship) } }
+          ? { connect: { id: country_of_citizenship } }
           : undefined,
         country_of_residence_details: country_of_residence
-          ? { connect: { id: BigInt(country_of_residence) } }
+          ? { connect: { id: country_of_residence } }
           : undefined,
         mother_tongue,
         name_of_poa,
@@ -162,12 +161,12 @@ exports.AddLead = async (req, res) => {
         have_you_owned_abode: have_you_owned_abode === "true" ? true : false,
         if_owned_project_name,
         stage_details: stageIdToConnect
-          ? { connect: { id: BigInt(stageIdToConnect) } }
+          ? { connect: { id: stageIdToConnect } }
           : undefined,
         status: "Active",
         created_at: new Date(),
         added_by_employee: employeeId
-          ? { connect: { id: BigInt(employeeId) } }
+          ? { connect: { id: employeeId } }
           : undefined,
         lead_assigned_date: employee_id ? new Date() : null,
         lead_status: lead_status || null,
@@ -178,14 +177,14 @@ exports.AddLead = async (req, res) => {
         funding: funding || null,
         lead_age: lead_age ? parseInt(lead_age) : null,
         project_details: project_id
-          ? { connect: { id: BigInt(project_id) } }
+          ? { connect: { id: project_id } }
           : undefined,
       },
     });
 
     await prisma.leadsprofession.create({
       data: {
-        lead_id: BigInt(lead?.id),
+        lead_id: lead?.id,
         current_designation: current_designation || null,
         name_of_current_organization: name_of_current_organization || null,
         address_of_current_organization:
@@ -199,8 +198,8 @@ exports.AddLead = async (req, res) => {
 
     await prisma.leadsactivities.create({
       data: {
-        lead_id: BigInt(lead?.id),
-        employee_id: BigInt(employeeId),
+        lead_id: lead?.id,
+        employee_id: employeeId,
         ca_message: "Lead created",
       },
     });
@@ -208,11 +207,11 @@ exports.AddLead = async (req, res) => {
     if (correspondence_state && correspondence_country) {
       await prisma.leadsaddress.create({
         data: {
-          lead_id: BigInt(lead?.id),
+          lead_id: lead?.id,
           address_type: "Correspondence",
-          country: BigInt(correspondence_country),
-          state: Number(correspondence_state),
-          city: Number(correspondence_city),
+          country: correspondence_country,
+          state: correspondence_state,
+          city: correspondence_city,
           address: correspondence_address,
           pincode: correspondence_pincode,
           created_at: new Date(),
@@ -223,11 +222,11 @@ exports.AddLead = async (req, res) => {
     if (permanent_state && permanent_country) {
       await prisma.leadsaddress.create({
         data: {
-          lead_id: BigInt(lead?.id),
+          lead_id: lead?.id,
           address_type: "Permanent",
-          country: BigInt(permanent_country),
-          state: Number(permanent_state),
-          city: Number(permanent_city),
+          country: permanent_country,
+          state: permanent_state,
+          city: permanent_city,
           address: permanent_address,
           pincode: permanent_pincode,
           created_at: new Date(),
@@ -260,13 +259,13 @@ const getAllSubordinateIds = async (employeeId) => {
     });
 
     for (const subordinate of subordinates) {
-      allSubordinateIds.add(subordinate.id.toString());
+      allSubordinateIds.add(subordinate.id);
       await getSubordinatesRecursive(subordinate.id);
     }
   };
 
-  await getSubordinatesRecursive(BigInt(employeeId));
-  return Array.from(allSubordinateIds).map((id) => BigInt(id));
+  await getSubordinatesRecursive(employeeId);
+  return Array.from(allSubordinateIds).map((id) => id);
 };
 
 exports.GetAllLeads = async (req, res) => {
@@ -294,7 +293,7 @@ exports.GetAllLeads = async (req, res) => {
     }
 
     const employee = await prisma.employees.findUnique({
-      where: { id: BigInt(employee_id) },
+      where: { id: employee_id },
       include: {
         roledetails: true,
       },
@@ -330,12 +329,12 @@ exports.GetAllLeads = async (req, res) => {
 
     // Filter by specific project if provided
     if (projectId && projectId !== 'undefined' && projectId !== '') {
-      searchCondition.project_id = BigInt(projectId);
+      searchCondition.project_id = projectId;
     }
 
     if (leadStage) {
       searchCondition.stage_details = {
-        id: BigInt(leadStage),
+        id: leadStage,
       };
     }
 
@@ -366,20 +365,20 @@ exports.GetAllLeads = async (req, res) => {
       searchCondition.OR = [
         // 1️⃣ Leads assigned to employee
         {
-          assigned_to_employee_id: BigInt(subordinateId),
+          assigned_to_employee_id: subordinateId,
         },
         // 2️⃣ Leads unassigned but added by subordinate employee
         {
           AND: [
             { assigned_to_employee_id: null },
-            { added_by_employee_id: BigInt(subordinateId) },
+            { added_by_employee_id: subordinateId },
           ],
         },
       ];
     } else if (employee?.roledetails?.name !== "Super Admin" && !hasViewAllLeads) {
       // Get all subordinate IDs for the current employee
       const allSubordinateIds = await getAllSubordinateIds(employee_id);
-      allSubordinateIds.push(BigInt(employee_id)); // Include the employee themselves
+      allSubordinateIds.push(employee_id); // Include the employee themselves
 
       searchCondition.OR = [
         // Leads assigned to the employee or subordinates
@@ -392,12 +391,12 @@ exports.GetAllLeads = async (req, res) => {
         {
           AND: [
             { assigned_to_employee_id: null },
-            { added_by_employee_id: BigInt(employee_id) },
+            { added_by_employee_id: employee_id },
           ],
         },
         {
           added_by_employee_id: {
-            in: allSubordinateIds.filter((id) => id !== BigInt(employee_id)), // only subordinates, not self
+            in: allSubordinateIds.filter((id) => id !== employee_id), // only subordinates, not self
           },
         },
       ];
@@ -425,7 +424,7 @@ exports.GetAllLeads = async (req, res) => {
       orderBy: { created_at: "desc" },
       select: {
         id: true,
-        uuid: true,
+        id: true,
         prefixes: true,
         full_name: true,
         email: true,
@@ -496,8 +495,8 @@ exports.GetAllLeads = async (req, res) => {
     const pageLeadsCount = leadsList.length;
 
     const leadsDetails = leadsList.map((ele) => ({
-      id: ele?.id.toString(),
-      lead_uid: ele?.uuid,
+      id: ele?.id,
+      lead_uid: ele?.id,
       prefixes: ele?.prefixes,
       full_name: ele?.full_name,
       email: ele?.email,
@@ -548,7 +547,7 @@ exports.getAllSubordinates = async (req, res) => {
     }
 
     const employee = await prisma.employees.findUnique({
-      where: { id: BigInt(employee_id) },
+      where: { id: employee_id },
       include: {
         roledetails: true,
       },
@@ -622,7 +621,7 @@ exports.getAllSubordinates = async (req, res) => {
       };
 
       const subordinates = await getAllSubordinatesRecursive(
-        BigInt(employee_id),
+        employee_id,
       );
 
       allEmployees = subordinates;
@@ -631,14 +630,14 @@ exports.getAllSubordinates = async (req, res) => {
     // Remove duplicates based on ID (just in case)
     let uniqueEmployees = allEmployees.filter(
       (sub, index, self) =>
-        index === self.findIndex((s) => s.id.toString() === sub.id.toString()),
+        index === self.findIndex((s) => s.id === sub.id),
     );
 
     // If project_id is provided, filter employees to only those allocated to this project
     if (project_id && project_id !== 'undefined' && project_id !== '') {
       const projectPermissions = await prisma.employeeProjectPermission.findMany({
         where: {
-          project_id: BigInt(project_id),
+          project_id: project_id,
         },
         select: {
           employee_id: true,
@@ -646,16 +645,16 @@ exports.getAllSubordinates = async (req, res) => {
       });
 
       const allocatedEmployeeIds = new Set(
-        projectPermissions.map((p) => p.employee_id.toString())
+        projectPermissions.map((p) => p.employee_id)
       );
 
       uniqueEmployees = uniqueEmployees.filter(
-        (emp) => allocatedEmployeeIds.has(emp.id.toString())
+        (emp) => allocatedEmployeeIds.has(emp.id)
       );
     }
 
     const employeeList = uniqueEmployees.map((sub) => ({
-      value: sub.id.toString(),
+      value: sub.id,
       label: sub.name,
     }));
 
@@ -739,13 +738,13 @@ exports.EditLead = async (req, res) => {
     if (!leadUuid) {
       return res.status(200).json({
         status: "error",
-        message: "Lead uuid is required",
+        message: "Lead id is required",
       });
     }
 
     const leadExist = await prisma.leads.findUnique({
       where: {
-        uuid: leadUuid,
+        id: leadUuid,
       },
     });
 
@@ -764,7 +763,7 @@ exports.EditLead = async (req, res) => {
       const isEmailExist = await prisma.leads.findFirst({
         where: {
           email: normalizedEmail,
-          uuid: { not: leadUuid },
+          id: { not: leadUuid },
         },
       });
       if (isEmailExist) {
@@ -784,7 +783,7 @@ exports.EditLead = async (req, res) => {
           phone_code,
           phone_number,
           project_id: leadExist?.project_id,
-          uuid: { not: leadUuid },
+          id: { not: leadUuid },
         },
       });
 
@@ -797,7 +796,7 @@ exports.EditLead = async (req, res) => {
     }
 
     const updatedLead = await prisma.leads.update({
-      where: { uuid: leadUuid },
+      where: { id: leadUuid },
       data: {
         prefixes: prefixes ? prefixes : leadExist?.prefixes,
         full_name: full_name ? full_name : leadExist?.full_name,
@@ -806,7 +805,7 @@ exports.EditLead = async (req, res) => {
         phone_code: phone_code ? phone_code : leadExist?.phone_code,
         phone_number: phone_number ? phone_number : leadExist?.phone_number,
         assigned_to_employee_id: employee_id
-          ? BigInt(employee_id)
+          ? employee_id
           : leadExist?.assigned_to_employee_id,
         source_of_lead: sourse_of_lead
           ? sourse_of_lead
@@ -846,16 +845,14 @@ exports.EditLead = async (req, res) => {
           : leadExist?.aadhar_card_no,
         ...(country_of_citizenship || leadExist?.country_of_citizenship
           ? {
-            country_of_citizenship: BigInt(
+            country_of_citizenship:
               country_of_citizenship || leadExist?.country_of_citizenship,
-            ),
           }
           : {}),
         ...(country_of_residence || leadExist?.country_of_residence
           ? {
-            country_of_residence: BigInt(
+            country_of_residence:
               country_of_residence || leadExist?.country_of_residence,
-            ),
           }
           : {}),
         mother_tongue: mother_tongue ? mother_tongue : leadExist?.mother_tongue,
@@ -902,17 +899,17 @@ exports.EditLead = async (req, res) => {
               : null
             : leadExist?.lead_age,
         lead_stage_id: lead_stage_id
-          ? BigInt(lead_stage_id)
+          ? lead_stage_id
           : leadExist?.lead_stage_id,
-        project_id: project_id ? BigInt(project_id) : leadExist?.project_id,
+        project_id: project_id ? project_id : leadExist?.project_id,
         updated_at: new Date(),
       },
     });
 
     await prisma.leadsactivities.create({
       data: {
-        lead_id: BigInt(leadExist.id),
-        employee_id: BigInt(employeeId),
+        lead_id: leadExist.id,
+        employee_id: employeeId,
         ca_message: "Lead details updated",
         employee_short_name: "U",
         color_code: "blue",
@@ -921,21 +918,21 @@ exports.EditLead = async (req, res) => {
 
     const correspondenceAddress = await prisma.leadsaddress.findFirst({
       where: {
-        lead_id: BigInt(leadExist?.id),
+        lead_id: leadExist?.id,
         address_type: "Correspondence",
       },
     });
 
     const permanentAddress = await prisma.leadsaddress.findFirst({
       where: {
-        lead_id: BigInt(leadExist?.id),
+        lead_id: leadExist?.id,
         address_type: "Permanent",
       },
     });
 
     const professionalDetails = await prisma.leadsprofession.findFirst({
       where: {
-        lead_id: BigInt(leadExist?.id),
+        lead_id: leadExist?.id,
       },
     });
 
@@ -944,7 +941,7 @@ exports.EditLead = async (req, res) => {
         where: { id: correspondenceAddress.id },
         data: {
           country: correspondence_country
-            ? BigInt(correspondence_country)
+            ? correspondence_country
             : correspondenceAddress.country,
           state: correspondence_state
             ? Number(correspondence_state)
@@ -960,11 +957,11 @@ exports.EditLead = async (req, res) => {
     } else if (correspondence_state && correspondence_country) {
       await prisma.leadsaddress.create({
         data: {
-          lead_id: BigInt(leadExist?.id),
+          lead_id: leadExist?.id,
           address_type: "Correspondence",
-          country: BigInt(correspondence_country),
-          state: Number(correspondence_state),
-          city: Number(correspondence_city),
+          country: correspondence_country,
+          state: correspondence_state,
+          city: correspondence_city,
           address: correspondence_address,
           pincode: correspondence_pincode,
           created_at: new Date(),
@@ -977,7 +974,7 @@ exports.EditLead = async (req, res) => {
         where: { id: permanentAddress.id },
         data: {
           country: permanent_country
-            ? BigInt(permanent_country)
+            ? permanent_country
             : permanentAddress.country,
           state: permanent_state
             ? Number(permanent_state)
@@ -991,11 +988,11 @@ exports.EditLead = async (req, res) => {
     } else if (permanent_state && permanent_country) {
       await prisma.leadsaddress.create({
         data: {
-          lead_id: BigInt(leadExist?.id),
+          lead_id: leadExist?.id,
           address_type: "Permanent",
-          country: BigInt(permanent_country),
-          state: Number(permanent_state),
-          city: Number(permanent_city),
+          country: permanent_country,
+          state: permanent_state,
+          city: permanent_city,
           address: permanent_address,
           pincode: permanent_pincode,
           created_at: new Date(),
@@ -1034,7 +1031,7 @@ exports.EditLead = async (req, res) => {
     ) {
       await prisma.leadsprofession.create({
         data: {
-          lead_id: BigInt(leadExist?.id),
+          lead_id: leadExist?.id,
           current_designation: current_designation || null,
           name_of_current_organization: name_of_current_organization || null,
           address_of_current_organization:
@@ -1050,7 +1047,7 @@ exports.EditLead = async (req, res) => {
     return res.status(200).json({
       status: "success",
       message: "Lead updated successfully",
-      uuid: leadExist?.uuid,
+      id: leadExist?.id,
     });
   } catch (error) {
     logger.error(
@@ -1068,11 +1065,11 @@ exports.DeleteLead = async (req, res) => {
 
   try {
     const lead = await prisma.leads.findUnique({
-      where: { id: BigInt(leadId) },
-      select: { uuid: true, profile_pic_path: true },
+      where: { id: leadId },
+      select: { id: true, profile_pic_path: true },
     });
 
-    const leadFolder = path.resolve("uploads", "leads", `${lead?.uuid}`);
+    const leadFolder = path.resolve("uploads", "leads", `${lead?.id}`);
 
     if (fs.existsSync(leadFolder)) {
       await fs.promises.rm(leadFolder, { recursive: true, force: true });
@@ -1082,23 +1079,23 @@ exports.DeleteLead = async (req, res) => {
     }
 
     await prisma.leadsactivities.deleteMany({
-      where: { lead_id: BigInt(leadId) },
+      where: { lead_id: leadId },
     });
 
     await prisma.leadsfilemanager.deleteMany({
-      where: { lead_id: BigInt(leadId) },
+      where: { lead_id: leadId },
     });
 
     await prisma.leadsnotes.deleteMany({
-      where: { lead_id: BigInt(leadId) },
+      where: { lead_id: leadId },
     });
 
     await prisma.leadsaddress.deleteMany({
-      where: { lead_id: BigInt(leadId) },
+      where: { lead_id: leadId },
     });
 
     await prisma.leads.delete({
-      where: { id: BigInt(leadId) },
+      where: { id: leadId },
     });
 
     return res.status(200).json({
@@ -1117,10 +1114,11 @@ exports.DeleteLead = async (req, res) => {
 };
 
 exports.GetSingleLead = async (req, res) => {
-  const { leadUuid } = req.query;
+  const { leadUuid, leadId, currentLeadId } = req.query;
+  const idToUse = leadUuid || leadId || currentLeadId;
 
   try {
-    if (!leadUuid) {
+    if (!idToUse) {
       return res.status(200).json({
         status: "error",
         message: "Lead Id is required",
@@ -1129,7 +1127,7 @@ exports.GetSingleLead = async (req, res) => {
 
     const leadDetail = await prisma.leads.findFirst({
       where: {
-        uuid: leadUuid,
+        id: idToUse,
       },
       select: {
         id: true,
@@ -1220,7 +1218,7 @@ exports.GetSingleLead = async (req, res) => {
 
     const address = await prisma.leadsaddress.findMany({
       where: {
-        lead_id: BigInt(leadDetail?.id),
+        lead_id: leadDetail?.id,
         address_type: {
           in: ["Correspondence", "Permanent"],
         },
@@ -1302,7 +1300,7 @@ exports.GetSingleLead = async (req, res) => {
 
     const professionalDetails = await prisma.leadsprofession.findFirst({
       where: {
-        lead_id: BigInt(leadDetail?.id),
+        lead_id: leadDetail?.id,
       },
       select: {
         current_designation: true,
@@ -1317,7 +1315,7 @@ exports.GetSingleLead = async (req, res) => {
 
     if (leadDetail.assigned_to) {
       lead_assignee = {
-        assignee_id: leadDetail.assigned_to.id.toString(),
+        assignee_id: leadDetail.assigned_to.id,
         name: leadDetail.assigned_to.name,
       };
     }
@@ -1422,25 +1420,27 @@ exports.GetSingleLead = async (req, res) => {
 };
 
 exports.GetLeadActivities = async (req, res) => {
-  const { lead_uuid, employee_uuid, limit, offset = 0 } = req.query;
+  const { lead_id, leadId, lead_uuid, employeeId, employee_uuid, limit, offset = 0 } = req.query;
+  const target_lead_id = lead_id || leadId || lead_uuid;
+  const target_employee_id = employeeId || employee_uuid;
 
   try {
-    if (!lead_uuid) {
+    if (!target_lead_id) {
       return res.status(200).json({
         status: "error",
-        message: "Lead UUID is required",
+        message: "Lead ID is required",
       });
     }
 
-    if (!employee_uuid) {
+    if (!target_employee_id) {
       return res.status(200).json({
         status: "error",
-        message: "Employee UUID is required",
+        message: "Employee ID is required",
       });
     }
 
     const leadDetail = await prisma.leads.findFirst({
-      where: { uuid: lead_uuid },
+      where: { id: target_lead_id },
       select: { id: true },
     });
 
@@ -1452,7 +1452,7 @@ exports.GetLeadActivities = async (req, res) => {
     }
 
     const employee = await prisma.employees.findFirst({
-      where: { uuid: employee_uuid },
+      where: { id: target_employee_id },
       select: { id: true },
     });
 
@@ -1465,15 +1465,15 @@ exports.GetLeadActivities = async (req, res) => {
 
     const totalCount = await prisma.leadsactivities.count({
       where: {
-        lead_id: BigInt(leadDetail?.id),
-        // employee_id: BigInt(employee?.id),
+        lead_id: leadDetail?.id,
+        // employee_id: employee?.id,
       },
     });
 
     const leadActivities = await prisma.leadsactivities.findMany({
       where: {
-        lead_id: BigInt(leadDetail?.id),
-        // employee_id: BigInt(employee?.id),
+        lead_id: leadDetail?.id,
+        // employee_id: employee?.id,
       },
       select: {
         id: true,
@@ -1553,8 +1553,8 @@ exports.UploadLeadProfilePic = async (req, res) => {
 
     try {
       const leadDetail = await prisma.leads.findFirst({
-        where: { id: BigInt(lead_id) },
-        select: { uuid: true, profile_pic_path: true },
+        where: { id: lead_id },
+        select: { id: true, profile_pic_path: true },
       });
 
       if (!leadDetail) {
@@ -1575,7 +1575,7 @@ exports.UploadLeadProfilePic = async (req, res) => {
       const uploadDir = path.join(
         __dirname,
         "../uploads/leads",
-        `${leadDetail.uuid}`,
+        `${leadDetail.id}`,
       );
       if (!fs.existsSync(uploadDir)) {
         fs.mkdirSync(uploadDir, { recursive: true });
@@ -1595,11 +1595,11 @@ exports.UploadLeadProfilePic = async (req, res) => {
       fs.copyFileSync(tempFilePath, savedFilePath);
       fs.unlinkSync(tempFilePath);
 
-      const profileUrl = `${process.env.API_URL}/uploads/leads/${leadDetail.uuid}/${profilePicture.originalFilename}`;
+      const profileUrl = `${process.env.API_URL}/uploads/leads/${leadDetail.id}/${profilePicture.originalFilename}`;
 
       await prisma.leads.update({
         where: {
-          id: BigInt(lead_id),
+          id: lead_id,
         },
         data: {
           profile_pic_url: profileUrl,
@@ -1624,11 +1624,13 @@ exports.UploadLeadProfilePic = async (req, res) => {
 };
 
 exports.AddleadNote = async (req, res) => {
-  const { note, user_id, lead_uuid, employeeId } = req.body;
+  const { note, user_id, lead_id, leadId, lead_uuid, employeeId, employee_id } = req.body;
+  const target_lead_id = lead_id || leadId || lead_uuid;
+  const target_employee_id = employeeId || employee_id;
   try {
     const lead = await prisma.leads.findFirst({
       where: {
-        uuid: lead_uuid,
+        id: target_lead_id,
       },
     });
 
@@ -1643,14 +1645,14 @@ exports.AddleadNote = async (req, res) => {
       data: {
         note_message: note,
         lead_id: lead.id,
-        employee_id: parseInt(user_id),
+        employee_id: user_id,
       },
     });
 
     await prisma.leadsactivities.create({
       data: {
-        lead_id: BigInt(lead.id),
-        employee_id: BigInt(employeeId),
+        lead_id: lead.id,
+        employee_id: target_employee_id,
         ca_message: `Notes Added`,
         employee_short_name: "N",
         color_code: "brown",
@@ -1673,11 +1675,12 @@ exports.AddleadNote = async (req, res) => {
 };
 
 exports.GetLeadNotes = async (req, res) => {
-  const { lead_uuid } = req.query;
+  const { lead_id, leadId, lead_uuid } = req.query;
+  const target_lead_id = lead_id || leadId || lead_uuid;
 
   try {
     const lead = await prisma.leads.findFirst({
-      where: { uuid: lead_uuid },
+      where: { id: target_lead_id },
     });
 
     if (!lead) {
@@ -1710,12 +1713,12 @@ exports.GetLeadNotes = async (req, res) => {
     });
 
     const serializedLeadnotes = leadnotes.map((note) => ({
-      id: note.id.toString(),
+      id: note.id,
       note_message: note.note_message,
       created_at: note.created_at.toISOString(),
       updated_at: note.updated_at ? note.updated_at.toISOString() : null,
       user: {
-        id: note.employee_details.id.toString(),
+        id: note.employee_details.id,
         name: note.employee_details.name,
         profile_pic_url: note.employee_details.profile_pic_url,
       },
@@ -1725,8 +1728,8 @@ exports.GetLeadNotes = async (req, res) => {
       status: "success",
       message: "Notes retrieved successfully",
       customer: {
-        id: lead.id.toString(),
-        uuid: lead.uuid,
+        id: lead.id,
+        id: lead.id,
         notes: serializedLeadnotes,
       },
     });
@@ -1748,7 +1751,7 @@ exports.assignLeadToEmployee = async (req, res) => {
     // Find the lead based on the provided leadUuid
     const lead = await prisma.leads.findFirst({
       where: {
-        uuid: leadUuid,
+        id: leadUuid,
       },
     });
 
@@ -1784,8 +1787,8 @@ exports.assignLeadToEmployee = async (req, res) => {
 
     await prisma.leadsactivities.create({
       data: {
-        lead_id: BigInt(lead?.id),
-        employee_id: BigInt(employee_id),
+        lead_id: lead?.id,
+        employee_id: employee_id,
         ca_message: `Lead assigned to ${employee.name}`,
       },
     });
@@ -1842,7 +1845,7 @@ exports.assignMultipleLeadsToEmployee = async (req, res) => {
     const leads = await prisma.leads.findMany({
       where: {
         id: {
-          in: leadIds.map((id) => BigInt(id)),
+          in: leadIds.map((id) => id),
         },
       },
     });
@@ -1872,7 +1875,7 @@ exports.assignMultipleLeadsToEmployee = async (req, res) => {
       prisma.leadsactivities.create({
         data: {
           lead_id: lead.id,
-          employee_id: BigInt(employee_id),
+          employee_id: employee_id,
           ca_message: `Lead assigned to ${employee.name}`,
         },
       }),
@@ -1902,7 +1905,7 @@ exports.transferLeadToEmployee = async (req, res) => {
     // Find the lead based on the provided leadUuid
     const lead = await prisma.leads.findFirst({
       where: {
-        uuid: leadUuid,
+        id: leadUuid,
       },
       include: {
         assigned_to: {
@@ -1940,7 +1943,7 @@ exports.transferLeadToEmployee = async (req, res) => {
         from_employee_id: lead.assigned_to_employee_id,
         to_employee_id: parseInt(assignEmployee),
         lead_id: lead.id,
-        transfered_by: parseInt(employee_id),
+        transfered_by: employee_id,
       },
     });
 
@@ -1955,8 +1958,8 @@ exports.transferLeadToEmployee = async (req, res) => {
 
     await prisma.leadsactivities.create({
       data: {
-        lead_id: BigInt(lead?.id),
-        employee_id: BigInt(employee_id),
+        lead_id: lead?.id,
+        employee_id: employee_id,
         ca_message: `lead transfered from ${previousEmployee} to ${employee.name} on ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()}`,
       },
     });
@@ -2022,7 +2025,7 @@ exports.EditLeadStage = async (req, res) => {
 
     // Get current lead stage
     const currentLead = await prisma.leads.findUnique({
-      where: { id: BigInt(leadId) },
+      where: { id: leadId },
       select: {
         stage_details: {
           select: {
@@ -2044,7 +2047,7 @@ exports.EditLeadStage = async (req, res) => {
     const currentStage = currentLead.stage_details;
 
     // If already on same stage → don't update
-    if (currentStage && BigInt(currentStage.id) === BigInt(leadStageId)) {
+    if (currentStage && currentStage.id === leadStageId) {
       return res.status(200).json({
         status: "error",
         message: "Lead is already in this stage",
@@ -2053,7 +2056,7 @@ exports.EditLeadStage = async (req, res) => {
 
     // Get new stage details for logging
     const newStage = await prisma.leadstages.findUnique({
-      where: { id: BigInt(leadStageId) },
+      where: { id: leadStageId },
       select: { id: true, name: true },
     });
 
@@ -2066,10 +2069,10 @@ exports.EditLeadStage = async (req, res) => {
 
     // Update lead with new stage
     const updatedLeadStage = await prisma.leads.update({
-      where: { id: BigInt(leadId) },
+      where: { id: leadId },
       data: {
-        // stage_details: { connect: { id: BigInt(leadStageId) } },
-        lead_stage_id: BigInt(leadStageId),
+        // stage_details: { connect: { id: leadStageId } },
+        lead_stage_id: leadStageId,
         updated_at: new Date(),
       },
     });
@@ -2077,8 +2080,8 @@ exports.EditLeadStage = async (req, res) => {
     // Create activity log
     await prisma.leadsactivities.create({
       data: {
-        lead_id: BigInt(leadId),
-        employee_id: BigInt(employeeId),
+        lead_id: leadId,
+        employee_id: employeeId,
         ca_message: `Lead stage updated from "${currentStage ? currentStage.name : "None"}" to "${newStage.name}"`,
       },
     });
@@ -2170,7 +2173,7 @@ exports.UploadParsedLeads = async (req, res) => {
               });
               continue;
             }
-            projectId = Number(project.id);
+            projectId = project.id;
           }
 
           // ✅ Validate and clean prefix
@@ -2213,7 +2216,7 @@ exports.UploadParsedLeads = async (req, res) => {
             }
 
             const phoneExists = await prisma.leads.findFirst({
-              where: { phone_number: phone, project_id: projectId ? BigInt(projectId) : undefined },
+              where: { phone_number: phone, project_id: projectId ? projectId : undefined },
             });
             if (phoneExists) {
               skipped.push({ row, reason: "Phone number already exists" });
@@ -2254,7 +2257,7 @@ exports.UploadParsedLeads = async (req, res) => {
                   },
                 },
               });
-              countryId = country ? Number(country.id) : null;
+              countryId = country ? country.id : null;
             }
 
             if (stateName?.trim()) {
@@ -2291,7 +2294,7 @@ exports.UploadParsedLeads = async (req, res) => {
           );
 
           // ✅ Generate UUID
-          const uuid = "LEAD" + Math.floor(100000 + Math.random() * 900000);
+          // REMOVED: // REMOVED: // REMOVED: const uuid = "LEAD" + Math.floor(100000 + Math.random() * 900000);
 
           let stage = null;
           const leadStageName = row["Lead Stage"]?.toString().trim();
@@ -2357,9 +2360,8 @@ exports.UploadParsedLeads = async (req, res) => {
           // ✅ Create lead
           const lead = await prisma.leads.create({
             data: {
-              uuid,
               project_details: projectId
-                ? { connect: { id: BigInt(projectId) } }
+                ? { connect: { id: projectId } }
                 : undefined,
               prefixes: prefix,
               full_name: row["Full Name"].toString().trim(),
@@ -2368,14 +2370,14 @@ exports.UploadParsedLeads = async (req, res) => {
               phone_number: phone,
               source_of_lead: row["Source of lead"]?.toString().trim() || null,
               assigned_to: employee_id
-                ? { connect: { id: BigInt(assignedEmployee?.id) } }
+                ? { connect: { id: assignedEmployee?.id } }
                 : undefined,
-              // assigned_to: BigInt(assignedEmployee?.id) || null,
-              // stage_id: BigInt(stage?.id),
+              // assigned_to: assignedEmployee?.id || null,
+              // stage_id: stage?.id,
               stage_details: stage
-                ? { connect: { id: BigInt(stage?.id) } }
+                ? { connect: { id: stage?.id } }
                 : undefined,
-              added_by_employee: { connect: { id: BigInt(employee_id) } },
+              added_by_employee: { connect: { id: employee_id } },
               lead_status: leadStatus,
               min_budget: minBudget,
               max_budget: maxBudget,
@@ -2390,12 +2392,12 @@ exports.UploadParsedLeads = async (req, res) => {
           if (row["Address"]?.toString().trim()) {
             await prisma.leadsaddress.create({
               data: {
-                lead_id: BigInt(lead.id),
+                lead_id: lead.id,
                 address_type: "Correspondence",
                 address: row["Address"].toString().trim(),
-                city: location.cityId ? Number(location.cityId) : null,
-                state: location.stateId ? Number(location.stateId) : null,
-                country: location.countryId ? BigInt(location.countryId) : null,
+                city: location.cityId ? location.cityId : null,
+                state: location.stateId ? location.stateId : null,
+                country: location.countryId ? location.countryId : null,
                 pincode: row["Pincode"]
                   ? row["Pincode"].toString().trim()
                   : null,
@@ -2406,9 +2408,9 @@ exports.UploadParsedLeads = async (req, res) => {
           // ✅ Create activity log
           await prisma.leadsactivities.create({
             data: {
-              lead_id: BigInt(lead.id),
+              lead_id: lead.id,
               ca_message: `Lead ${lead.full_name} created via bulk upload`,
-              employee_id: BigInt(employee_id),
+              employee_id: employee_id,
             },
           });
 
@@ -2508,7 +2510,7 @@ exports.ConvertLeadToCustomer = async (req, res) => {
 
     // Get lead (we need id and uuid and profile pic info)
     const lead = await prisma.leads.findUnique({
-      where: { uuid: leadUuid },
+      where: { id: leadUuid },
     });
 
     if (!lead) {
@@ -2532,7 +2534,7 @@ exports.ConvertLeadToCustomer = async (req, res) => {
       }
     }
     const existingPhone = await prisma.customers.findFirst({
-      where: { phone_code, phone_number, project_id: project_id ? BigInt(project_id) : undefined },
+      where: { phone_code, phone_number, project_id: project_id ? project_id : undefined },
     });
     if (existingPhone) {
       return res
@@ -2541,7 +2543,7 @@ exports.ConvertLeadToCustomer = async (req, res) => {
     }
 
     // New customer UUID
-    const uuid = "CUST" + Math.floor(100000 + Math.random() * 900000);
+    // REMOVED: // REMOVED: // REMOVED: const uuid = "CUST" + Math.floor(100000 + Math.random() * 900000);
 
     // ---------- Helper utilities ----------
     // Normalize path replacements handling Unix-style and Windows backslashes
@@ -2572,7 +2574,6 @@ exports.ConvertLeadToCustomer = async (req, res) => {
     // ---------- 1) Create customer ----------
     const customer = await prisma.customers.create({
       data: {
-        uuid,
         prefixes,
         first_name,
         last_name,
@@ -2597,10 +2598,10 @@ exports.ConvertLeadToCustomer = async (req, res) => {
         pan_card_no,
         aadhar_card_no,
         country_of_citizenship_details: country_of_citizenship
-          ? { connect: { id: BigInt(country_of_citizenship) } }
+          ? { connect: { id: country_of_citizenship } }
           : undefined,
         country_of_residence_details: country_of_residence
-          ? { connect: { id: BigInt(country_of_residence) } }
+          ? { connect: { id: country_of_residence } }
           : undefined,
         mother_tongue,
         name_of_poa,
@@ -2619,7 +2620,7 @@ exports.ConvertLeadToCustomer = async (req, res) => {
     // ---------- 2) Profession ----------
     await prisma.profession.create({
       data: {
-        customer_id: BigInt(customer.id),
+        customer_id: customer.id,
         current_designation: current_designation || null,
         name_of_current_organization: name_of_current_organization || null,
         address_of_current_organization:
@@ -2633,12 +2634,12 @@ exports.ConvertLeadToCustomer = async (req, res) => {
 
     // ---------- 3) Transfer Activities ----------
     const leadActivities = await prisma.leadsactivities.findMany({
-      where: { lead_id: BigInt(lead.id) },
+      where: { lead_id: lead.id },
     });
     if (leadActivities.length > 0) {
       await prisma.customeractivities.createMany({
         data: leadActivities.map((a) => ({
-          customer_id: BigInt(customer.id),
+          customer_id: customer.id,
           employee_id: a.employee_id,
           ca_message: a.ca_message,
           created_at: a.created_at,
@@ -2651,12 +2652,12 @@ exports.ConvertLeadToCustomer = async (req, res) => {
 
     // ---------- 4) Transfer Notes ----------
     const leadNotes = await prisma.leadsnotes.findMany({
-      where: { lead_id: BigInt(lead.id) },
+      where: { lead_id: lead.id },
     });
     if (leadNotes.length > 0) {
       await prisma.customernotes.createMany({
         data: leadNotes.map((n) => ({
-          customer_id: BigInt(customer.id),
+          customer_id: customer.id,
           user_id: n.employee_id,
           note_message: n.note_message,
           created_at: n.created_at,
@@ -2667,15 +2668,15 @@ exports.ConvertLeadToCustomer = async (req, res) => {
 
     // ---------- 5) Transfer Files (DB + folder) ----------
     const leadFiles = await prisma.leadsfilemanager.findMany({
-      where: { lead_id: BigInt(lead.id) },
+      where: { lead_id: lead.id },
     });
 
     // Prepare folders
-    const leadFolder = path.resolve("uploads", "leads", `${lead.uuid}`);
+    const leadFolder = path.resolve("uploads", "leads", `${lead.id}`);
     const customerFolder = path.resolve(
       "uploads",
       "customers",
-      `${customer.uuid}`,
+      `${customer.id}`,
     );
 
     // Copy files/folder if present
@@ -2693,16 +2694,16 @@ exports.ConvertLeadToCustomer = async (req, res) => {
       const customerFilesData = leadFiles.map((f) => {
         const newFilePath = replaceLeadToCustomerInPath(
           f.file_path || "",
-          lead.uuid,
-          customer.uuid,
+          lead.id,
+          customer.id,
         );
         const newFileUrl = replaceLeadToCustomerInPath(
           f.file_url || "",
-          lead.uuid,
-          customer.uuid,
+          lead.id,
+          customer.id,
         );
         return {
-          uuid: f.uuid,
+          id: f.id,
           name: f.name,
           file_icon_type: f.file_icon_type,
           file_type: f.file_type,
@@ -2710,7 +2711,7 @@ exports.ConvertLeadToCustomer = async (req, res) => {
           file_path: newFilePath,
           file_url: newFileUrl,
           parent_id: f.parent_id,
-          customer_id: BigInt(customer.id),
+          customer_id: customer.id,
           added_by: f.added_by,
           created_at: f.created_at,
           updated_at: f.updated_at,
@@ -2760,12 +2761,12 @@ exports.ConvertLeadToCustomer = async (req, res) => {
           // build new url (if original had a url pattern with /uploads/leads/..., replace it)
           let newProfileUrl = replaceLeadToCustomerInPath(
             lead.profile_pic_url || "",
-            lead.uuid,
-            customer.uuid,
+            lead.id,
+            customer.id,
           );
           if (!newProfileUrl) {
             // fallback: construct url path portion (server may serve uploads at /uploads)
-            newProfileUrl = `/uploads/customers/${customer.uuid}/${profileFilename}`;
+            newProfileUrl = `/uploads/customers/${customer.id}/${profileFilename}`;
           }
 
           // build new path (absolute filesystem path)
@@ -2778,7 +2779,7 @@ exports.ConvertLeadToCustomer = async (req, res) => {
 
           // update customer record with profile pic details
           await prisma.customers.update({
-            where: { id: BigInt(customer.id) },
+            where: { id: customer.id },
             data: {
               profile_pic_url: newProfileUrl,
               profile_pic_path: newProfilePath,
@@ -2796,11 +2797,11 @@ exports.ConvertLeadToCustomer = async (req, res) => {
     if (correspondence_state && correspondence_country) {
       await prisma.customeraddress.create({
         data: {
-          customer_id: BigInt(customer.id),
+          customer_id: customer.id,
           address_type: "Correspondence",
-          country: BigInt(correspondence_country),
-          state: Number(correspondence_state),
-          city: Number(correspondence_city),
+          country: correspondence_country,
+          state: correspondence_state,
+          city: correspondence_city,
           address: correspondence_address,
           pincode: correspondence_pincode,
           created_at: new Date(),
@@ -2811,11 +2812,11 @@ exports.ConvertLeadToCustomer = async (req, res) => {
     if (permanent_state && permanent_country) {
       await prisma.customeraddress.create({
         data: {
-          customer_id: BigInt(customer.id),
+          customer_id: customer.id,
           address_type: "Permanent",
-          country: BigInt(permanent_country),
-          state: Number(permanent_state),
-          city: Number(permanent_city),
+          country: permanent_country,
+          state: permanent_state,
+          city: permanent_city,
           address: permanent_address,
           pincode: permanent_pincode,
           created_at: new Date(),
@@ -2825,16 +2826,16 @@ exports.ConvertLeadToCustomer = async (req, res) => {
 
     // ---------- 7) Delete Lead DB records and lead folder (only after successful migration) ----------
     await prisma.leadsactivities.deleteMany({
-      where: { lead_id: BigInt(lead.id) },
+      where: { lead_id: lead.id },
     });
     await prisma.leadsfilemanager.deleteMany({
-      where: { lead_id: BigInt(lead.id) },
+      where: { lead_id: lead.id },
     });
-    await prisma.leadsnotes.deleteMany({ where: { lead_id: BigInt(lead.id) } });
+    await prisma.leadsnotes.deleteMany({ where: { lead_id: lead.id } });
     await prisma.leadsaddress.deleteMany({
-      where: { lead_id: BigInt(lead.id) },
+      where: { lead_id: lead.id },
     });
-    await prisma.leads.delete({ where: { id: BigInt(lead.id) } });
+    await prisma.leads.delete({ where: { id: lead.id } });
 
     if (fs.existsSync(leadFolder)) {
       await fs.promises.rm(leadFolder, { recursive: true, force: true });
@@ -2844,7 +2845,7 @@ exports.ConvertLeadToCustomer = async (req, res) => {
     return res.status(201).json({
       status: "success",
       message: "Lead converted to customer successfully",
-      customerUuid: uuid
+      customerId: customer.id
     });
   } catch (error) {
     logger.error(

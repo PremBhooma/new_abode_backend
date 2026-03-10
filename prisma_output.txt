@@ -1,0 +1,28 @@
+﻿node.exe : Environment 
+variables loaded from .env
+At line:1 char:1
++ & "C:\Program 
+Files\nodejs/node.exe" 
+"C:\Program 
+Files\nodejs/node_mo ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo        
+      : NotSpecified: (E  
+  nvironment variables    
+ loaded from .env:Stri    
+ng) [], RemoteExcepti    
+on
+    + FullyQualifiedError 
+   Id : NativeCommandErr  
+  or
+ 
+Prisma schema loaded from prisma\schema.prisma
+
+Γ£ö Generated Prisma Client (v6.15.0) to .\generated\prisma in 1.80s
+
+Start by importing your Prisma Client (See: https://pris.ly/d/importing-client)
+
+Tip: Interested in query caching in just a few lines of code? Try Accelerate today! https://pris.ly/tip-3-accelerate
+

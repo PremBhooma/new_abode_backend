@@ -26,19 +26,18 @@ enum GenderOptions {
 }
 
 model Employees {
-  id                BigInt          @id @default(autoincrement())
-  uuid              String?         @unique
+  id                String          @id @default(uuid())
   name              String?         @db.VarChar(255)
   email             String?         @unique @db.VarChar(255)
   password          String?         @db.VarChar(300)
   phone_code        String?         @db.VarChar(10)
   phone_number      String?         @db.VarChar(100)
-  gender            GenderOptions? // Define this enum separately if used
+  gender            GenderOptions?
   employee_status   Employeestatus? @default(Active)
-  reporting_head_id BigInt?
+  reporting_head_id String?
   otp               String?         @db.VarChar(10)
   is_verified       Boolean?        @default(false)
-  role_id           BigInt?
+  role_id           String?
   otp_expiry        DateTime?
   created_at        DateTime        @default(now())
   updated_at        DateTime?
@@ -77,7 +76,7 @@ model Employees {
 }
 
 model Roles {
-  id           BigInt      @id @default(autoincrement())
+  id           String      @id @default(uuid())
   name         String?     @db.VarChar(255)
   default_role Boolean?    @default(false)
   status       Rolestatus? @default(Active)
@@ -92,8 +91,8 @@ model Roles {
 }
 
 model Rolepermissions {
-  id          BigInt    @id @default(autoincrement())
-  role_id     BigInt?
+  id          String    @id @default(uuid())
+  role_id     String?
   permissions String?   @db.Text
   created_at  DateTime? @default(now())
   updated_at  DateTime?
@@ -126,9 +125,8 @@ enum Prefixes {
 }
 
 model Customers {
-  id                                 BigInt           @id @default(autoincrement())
-  uuid                               String?          @unique @db.VarChar(255)
-  project_id                         BigInt?
+  id                                 String           @id @default(uuid())
+  project_id                         String?
   profile_pic_url                    String?
   profile_pic_path                   String?
   prefixes                           Prefixes?
@@ -152,23 +150,19 @@ model Customers {
   spouse_dob                         DateTime?
   pan_card_no                        String?          @db.VarChar(20)
   aadhar_card_no                     String?          @db.VarChar(30)
-  country_of_citizenship             BigInt?
-  country_of_residence               BigInt?
+  country_of_citizenship             String?
+  country_of_residence               String?
   mother_tongue                      String?          @db.VarChar(100)
   name_of_poa                        String?          @db.VarChar(100)
   holder_poa                         Powerofattorney?
-  // address_of_correspondence          String?          @db.Text
-  // correspondence_pincode             String?          @db.VarChar(20)
   no_of_years_correspondence_address Int?
   no_of_years_city                   Int?
-  // permanent_address                  String?          @db.Text
-  // permanent_pincode                  String?          @db.VarChar(20)
   have_you_owned_abode               Boolean?         @default(false)
   if_owned_project_name              String?          @db.VarChar(255)
   source_of_lead                     String?
   status                             CustomerStatus   @default(Active)
   soft_delete                        Int              @default(0)
-  added_by_employee_id               BigInt?
+  added_by_employee_id               String?
   loan_rejected                      Boolean?         @default(false)
   created_at                         DateTime?        @default(now())
   updated_at                         DateTime?
@@ -195,9 +189,9 @@ model Customers {
 }
 
 model Customerflat {
-  id                         BigInt    @id @default(autoincrement())
-  flat_id                    BigInt?
-  customer_id                BigInt?
+  id                         String    @id @default(uuid())
+  flat_id                    String?
+  customer_id                String?
   saleable_area_sq_ft        Int?
   rate_per_sq_ft             Int?
   discount                   Float?
@@ -235,13 +229,13 @@ model Customerflat {
 }
 
 model Profession {
-  id                              BigInt  @id @default(autoincrement())
+  id                              String  @id @default(uuid())
   current_designation             String? @db.VarChar(250)
   name_of_current_organization    String? @db.VarChar(250)
   address_of_current_organization String? @db.Text
   no_of_years_work_experience     Float?
   current_annual_income           Float?
-  customer_id                     BigInt?
+  customer_id                     String?
 
   customer_details Customers? @relation(fields: [customer_id], references: [id])
 
@@ -257,13 +251,13 @@ enum AddressType {
 }
 
 model Customeraddress {
-  id           BigInt       @id @default(autoincrement())
-  customer_id  BigInt?
+  id           String       @id @default(uuid())
+  customer_id  String?
   address_type AddressType?
   address      String?      @db.Text
-  city         Int?
-  state        Int?
-  country      BigInt?
+  city         String?
+  state        String?
+  country      String?
   pincode      String?      @db.VarChar(20)
   created_at   DateTime     @default(now())
   updated_at   DateTime?
@@ -282,10 +276,10 @@ enum cities_status {
 }
 
 model Cities {
-  id             Int           @id @default(autoincrement())
+  id             String        @id @default(uuid())
   name           String?       @db.VarChar(50)
-  state_id       Int?
-  country_id     Int?
+  state_id       String?
+  country_id     String?
   latitude       String?       @db.VarChar(100)
   longitude      String?       @db.VarChar(100)
   mobile         String?       @db.VarChar(50)
@@ -305,11 +299,11 @@ enum states_status {
 }
 
 model States {
-  id                 Int               @id @default(autoincrement())
+  id                 String            @id @default(uuid())
   name               String?           @db.VarChar(50)
   status             states_status     @default(active)
   iso2               String?           @db.VarChar(100)
-  country_id         Int?
+  country_id         String?
   state_to_customers Customeraddress[] @relation("StateToCustomers")
   state_to_lead      Leadsaddress[]    @relation("StateToLead")
 
@@ -317,7 +311,7 @@ model States {
 }
 
 model Country {
-  id                           BigInt            @id @default(autoincrement())
+  id                           String            @id @default(uuid())
   name                         String?           @db.VarChar(250)
   iso3                         String?           @db.VarChar(3)
   iso2                         String?           @db.VarChar(2)
@@ -381,12 +375,11 @@ enum FurnishedStatus {
 }
 
 model Flat {
-  id                           BigInt           @id @default(autoincrement())
-  uuid                         String?          @unique @db.VarChar(255)
-  project_id                   BigInt?
+  id                           String           @id @default(uuid())
+  project_id                   String?
   flat_reward                  Boolean?         @default(false)
   flat_no                      String?          @db.VarChar(255)
-  block_id                     BigInt?
+  block_id                     String?
   floor_no                     String?          @db.VarChar(255)
   square_feet                  Decimal?         @db.Decimal(10, 2)
   type                         String?
@@ -402,7 +395,7 @@ model Flat {
   furnished_status             FurnishedStatus?
   description                  String?          @db.Text
   udl                          String?          @db.VarChar(255)
-  group_owner_id               BigInt?
+  group_owner_id               String?
   group_owner                  Groupowner?      @relation(fields: [group_owner_id], references: [id])
   corner                       Boolean?         @default(false)
   mortgage                     Boolean?         @default(false)
@@ -414,8 +407,8 @@ model Flat {
   flat_img_path                String?
   totalAmount                  Float?
   paidAmount                   Float?           @default(0)
-  customer_id                  BigInt?
-  added_by_employee_id         BigInt?
+  customer_id                  String?
+  added_by_employee_id         String?
   word_agreement_template_path String?
   word_agreement_template_url  String?
   pdf_agreement_template_path  String?
@@ -446,7 +439,7 @@ model Flat {
 }
 
 model Companyinfo {
-  id              BigInt    @id @default(autoincrement())
+  id              String    @id @default(uuid())
   companyname     String?   @db.VarChar(255)
   address_one     String?   @db.Text
   address_two     String?   @db.Text
@@ -470,8 +463,7 @@ model Companyinfo {
 }
 
 model Project {
-  id                              BigInt    @id @default(autoincrement())
-  uuid                            String?   @unique @db.VarChar(255)
+  id                              String    @id @default(uuid())
   project_name                    String?   @db.VarChar(255)
   project_address                 String?   @db.Text
   project_corner_price            Int?
@@ -486,7 +478,7 @@ model Project {
   maintenance_rate_per_sqft       Float?
   maintenance_duration_months     Float?
   corpus_fund                     Float?
-  employee_id                     BigInt?
+  employee_id                     String?
   project_rewards                 Boolean?  @default(false)
   created_at                      DateTime? @default(now())
   updated_at                      DateTime?
@@ -509,9 +501,9 @@ model Project {
 }
 
 model EmployeeProjectPermission {
-  id          BigInt    @id @default(autoincrement())
-  employee_id BigInt?
-  project_id  BigInt?
+  id          String    @id @default(uuid())
+  employee_id String?
+  project_id  String?
   created_at  DateTime? @default(now())
   updated_at  DateTime?
 
@@ -522,25 +514,23 @@ model EmployeeProjectPermission {
 }
 
 model Block {
-  id         BigInt    @id @default(autoincrement())
-  uuid       String?   @unique @db.VarChar(255)
+  id         String    @id @default(uuid())
   block_name String?   @db.VarChar(255)
-  project_id BigInt?
+  project_id String?
   created_at DateTime? @default(now())
   updated_at DateTime?
 
   project Project? @relation(fields: [project_id], references: [id])
-  flats   Flat[]   @relation // New relation to Flat
+  flats   Flat[]   @relation
 
   @@map("blocks")
 }
 
 model Payments {
-  id                   BigInt    @id @default(autoincrement())
-  uuid                 String?   @unique @db.VarChar(255)
-  project_id           BigInt?
-  flat_id              BigInt?
-  customer_id          BigInt?
+  id                   String    @id @default(uuid())
+  project_id           String?
+  flat_id              String?
+  customer_id          String?
   amount               Float?
   payment_type         String?
   payment_towards      String?
@@ -551,7 +541,7 @@ model Payments {
   receipt_path         String?
   receipt_url          String?
   comment              String?
-  added_by_employee_id BigInt?
+  added_by_employee_id String?
   created_at           DateTime  @default(now())
   updated_at           DateTime?
 
@@ -564,8 +554,7 @@ model Payments {
 }
 
 model Parsedpayments {
-  id                   BigInt    @id @default(autoincrement())
-  uuid                 String?   @unique @db.VarChar(255)
+  id                   String    @id @default(uuid())
   amount               Float?
   payment_type         String?
   payment_towards      String?
@@ -575,9 +564,9 @@ model Parsedpayments {
   transaction_id       String?
   flat                 String?
   block                String?
-  project_id           BigInt?
+  project_id           String?
   comment              String?
-  added_by_employee_id BigInt?
+  added_by_employee_id String?
   created_at           DateTime  @default(now())
   updated_at           DateTime?
 
@@ -587,9 +576,9 @@ model Parsedpayments {
 }
 
 model Flatnotes {
-  id           BigInt     @id @default(autoincrement())
-  flat_id      BigInt?    @db.BigInt
-  user_id      BigInt?    @db.BigInt
+  id           String     @id @default(uuid())
+  flat_id      String?
+  user_id      String?
   note_message String?    @db.Text
   created_at   DateTime   @default(now())
   updated_at   DateTime?
@@ -600,9 +589,9 @@ model Flatnotes {
 }
 
 model Taskactivities {
-  id                  BigInt     @id @default(autoincrement())
-  flat_id             BigInt?
-  employee_id         BigInt?
+  id                  String     @id @default(uuid())
+  flat_id             String?
+  employee_id         String?
   ta_message          String?    @db.Text
   created_at          DateTime?  @default(now())
   updated_at          DateTime?
@@ -615,17 +604,16 @@ model Taskactivities {
 }
 
 model Flatfilemanager {
-  id              BigInt     @id @default(autoincrement())
-  uuid            String?    @unique @db.VarChar(500)
+  id              String     @id @default(uuid())
   name            String?    @db.VarChar(255)
   file_icon_type  String?    @db.VarChar(255)
   file_type       String?    @db.VarChar(255)
   file_size       Int?
   file_path       String?    @db.Text
   file_url        String?    @db.Text
-  parent_id       BigInt?
-  flat_id         BigInt?
-  added_by        BigInt?
+  parent_id       String?
+  flat_id         String?
+  added_by        String?
   created_at      DateTime   @default(now())
   updated_at      DateTime
   employeedetails Employees? @relation(fields: [added_by], references: [id])
@@ -636,17 +624,16 @@ model Flatfilemanager {
 }
 
 model Customerfilemanager {
-  id              BigInt     @id @default(autoincrement())
-  uuid            String?    @unique @db.VarChar(500)
+  id              String     @id @default(uuid())
   name            String?    @db.VarChar(255)
   file_icon_type  String?    @db.VarChar(255)
   file_type       String?    @db.VarChar(255)
   file_size       Int?
   file_path       String?    @db.Text
   file_url        String?    @db.Text
-  parent_id       BigInt?
-  customer_id     BigInt?
-  added_by        BigInt?
+  parent_id       String?
+  customer_id     String?
+  added_by        String?
   created_at      DateTime   @default(now())
   updated_at      DateTime?
   employeedetails Employees? @relation(fields: [added_by], references: [id])
@@ -657,9 +644,9 @@ model Customerfilemanager {
 }
 
 model Customernotes {
-  id           BigInt     @id @default(autoincrement())
-  customer_id  BigInt?    @db.BigInt
-  user_id      BigInt?    @db.BigInt
+  id           String     @id @default(uuid())
+  customer_id  String?
+  user_id      String?
   note_message String?    @db.Text
   created_at   DateTime   @default(now())
   updated_at   DateTime?
@@ -670,9 +657,9 @@ model Customernotes {
 }
 
 model Customeractivities {
-  id                  BigInt     @id @default(autoincrement())
-  customer_id         BigInt?
-  employee_id         BigInt?
+  id                  String     @id @default(uuid())
+  customer_id         String?
+  employee_id         String?
   ca_message          String?    @db.Text
   created_at          DateTime?  @default(now())
   updated_at          DateTime?
@@ -685,9 +672,8 @@ model Customeractivities {
 }
 
 model Columnstore {
-  id          BigInt  @id @default(autoincrement())
-  uuid        String? @unique @db.VarChar(500)
-  employee_id BigInt?
+  id          String  @id @default(uuid())
+  employee_id String?
   page_name   String? @db.VarChar(255)
   columns     Json?
 
@@ -698,8 +684,7 @@ model Columnstore {
 }
 
 model Backupdata {
-  id          BigInt    @id @default(autoincrement())
-  uuid        String?   @unique @db.VarChar(500)
+  id          String    @id @default(uuid())
   backup_name String?   @db.VarChar(255)
   backup_path String?   @db.Text
   created_at  DateTime? @default(now())
@@ -717,7 +702,7 @@ enum BackupScheduleStatus {
 }
 
 model Backupschedule {
-  id         BigInt                @id @default(autoincrement())
+  id         String                @id @default(uuid())
   schedule   BackupScheduleStatus?
   created_at DateTime?             @default(now())
   updated_at DateTime?
@@ -726,8 +711,7 @@ model Backupschedule {
 }
 
 model Groupowner {
-  id         BigInt    @id @default(autoincrement())
-  uuid       String?   @unique @db.VarChar(500)
+  id         String    @id @default(uuid())
   name       String?   @db.VarChar(255)
   isDefault  Boolean?  @default(false)
   created_at DateTime  @default(now())
@@ -739,8 +723,8 @@ model Groupowner {
 }
 
 model Amenities {
-  id         BigInt    @id @default(autoincrement())
-  project_id BigInt?
+  id         String    @id @default(uuid())
+  project_id String?
   amount     Float?
   flat_type  String?   @db.VarChar(255)
   created_at DateTime  @default(now())
@@ -752,9 +736,9 @@ model Amenities {
 }
 
 model Customerflatupdateactivities {
-  id              BigInt        @id @default(autoincrement())
-  employee_id     BigInt?
-  customerflat_id BigInt?
+  id              String        @id @default(uuid())
+  employee_id     String?
+  customerflat_id String?
   message         String?       @db.Text
   updated_at      DateTime?
   created_at      DateTime?     @default(now())
@@ -765,10 +749,10 @@ model Customerflatupdateactivities {
 }
 
 model BookingStages {
-  id          BigInt    @id @default(autoincrement())
+  id          String    @id @default(uuid())
   name        String?   @db.VarChar(255)
-  flat_id     BigInt?
-  customer_id BigInt?
+  flat_id     String?
+  customer_id String?
   created_at  DateTime  @default(now())
   updated_at  DateTime?
 
@@ -794,9 +778,8 @@ enum LeadFunding {
 }
 
 model Leads {
-  id                                 BigInt           @id @default(autoincrement())
-  uuid                               String?          @unique @db.VarChar(255)
-  project_id                         BigInt?
+  id                                 String           @id @default(uuid())
+  project_id                         String?
   profile_pic_url                    String?
   profile_pic_path                   String?
   prefixes                           Prefixes?
@@ -819,8 +802,8 @@ model Leads {
   spouse_dob                         DateTime?
   pan_card_no                        String?          @db.VarChar(20)
   aadhar_card_no                     String?          @db.VarChar(30)
-  country_of_citizenship             BigInt?
-  country_of_residence               BigInt?
+  country_of_citizenship             String?
+  country_of_residence               String?
   mother_tongue                      String?          @db.VarChar(100)
   name_of_poa                        String?          @db.VarChar(100)
   holder_poa                         Powerofattorney?
@@ -828,11 +811,11 @@ model Leads {
   no_of_years_city                   Int?
   have_you_owned_abode               Boolean?         @default(false)
   if_owned_project_name              String?          @db.VarChar(255)
-  assigned_to_employee_id            BigInt?
+  assigned_to_employee_id            String?
   source_of_lead                     String?          @db.VarChar(255)
-  lead_stage_id                      BigInt?
+  lead_stage_id                      String?
   status                             CustomerStatus   @default(Active)
-  added_by_employee_id               BigInt?
+  added_by_employee_id               String?
   created_at                         DateTime?        @default(now())
   updated_at                         DateTime?
   lead_assigned_date                 DateTime?
@@ -862,13 +845,13 @@ model Leads {
 }
 
 model Leadsprofession {
-  id                              BigInt    @id @default(autoincrement())
+  id                              String    @id @default(uuid())
   current_designation             String?   @db.VarChar(250)
   name_of_current_organization    String?   @db.VarChar(250)
   address_of_current_organization String?   @db.Text
   no_of_years_work_experience     Float?
   current_annual_income           Float?
-  lead_id                         BigInt?
+  lead_id                         String?
   created_at                      DateTime  @default(now())
   updated_at                      DateTime?
 
@@ -878,13 +861,13 @@ model Leadsprofession {
 }
 
 model Leadsaddress {
-  id           BigInt       @id @default(autoincrement())
-  lead_id      BigInt?
+  id           String       @id @default(uuid())
+  lead_id      String?
   address_type AddressType?
   address      String?      @db.Text
-  city         Int?
-  state        Int?
-  country      BigInt?
+  city         String?
+  state        String?
+  country      String?
   pincode      String?      @db.VarChar(20)
   created_at   DateTime     @default(now())
   updated_at   DateTime?
@@ -898,9 +881,9 @@ model Leadsaddress {
 }
 
 model Leadsactivities {
-  id                  BigInt     @id @default(autoincrement())
-  lead_id             BigInt?
-  employee_id         BigInt?
+  id                  String     @id @default(uuid())
+  lead_id             String?
+  employee_id         String?
   ca_message          String?    @db.Text
   created_at          DateTime?  @default(now())
   updated_at          DateTime?
@@ -913,9 +896,9 @@ model Leadsactivities {
 }
 
 model Leadsnotes {
-  id               BigInt     @id @default(autoincrement())
-  lead_id          BigInt?    @db.BigInt
-  employee_id      BigInt?    @db.BigInt
+  id               String     @id @default(uuid())
+  lead_id          String?
+  employee_id      String?
   note_message     String?    @db.Text
   created_at       DateTime   @default(now())
   updated_at       DateTime?
@@ -926,17 +909,16 @@ model Leadsnotes {
 }
 
 model Leadsfilemanager {
-  id               BigInt     @id @default(autoincrement())
-  uuid             String?    @unique @db.VarChar(500)
+  id               String     @id @default(uuid())
   name             String?    @db.VarChar(255)
   file_icon_type   String?    @db.VarChar(255)
   file_type        String?    @db.VarChar(255)
   file_size        Int?
   file_path        String?    @db.Text
   file_url         String?    @db.Text
-  parent_id        BigInt?
-  lead_id          BigInt?
-  added_by         BigInt?
+  parent_id        String?
+  lead_id          String?
+  added_by         String?
   created_at       DateTime   @default(now())
   updated_at       DateTime?
   employee_details Employees? @relation(fields: [added_by], references: [id])
@@ -947,7 +929,7 @@ model Leadsfilemanager {
 }
 
 model Saledeedtemplates {
-  id         BigInt    @id @default(autoincrement())
+  id         String    @id @default(uuid())
   path       String?
   file_url   String?
   created_at DateTime  @default(now())
@@ -957,7 +939,7 @@ model Saledeedtemplates {
 }
 
 model Agreementtemplates {
-  id         BigInt    @id @default(autoincrement())
+  id         String    @id @default(uuid())
   path       String?
   file_url   String?
   created_at DateTime  @default(now())
@@ -967,7 +949,7 @@ model Agreementtemplates {
 }
 
 model Leadstages {
-  id         BigInt    @id @default(autoincrement())
+  id         String    @id @default(uuid())
   name       String?
   order      Int?      @unique
   created_at DateTime  @default(now())
@@ -979,11 +961,11 @@ model Leadstages {
 }
 
 model Leadtransfer {
-  id               BigInt    @id @default(autoincrement())
-  from_employee_id BigInt?
-  to_employee_id   BigInt?
-  lead_id          BigInt?
-  transfered_by    BigInt?
+  id               String    @id @default(uuid())
+  from_employee_id String?
+  to_employee_id   String?
+  lead_id          String?
+  transfered_by    String?
   created_at       DateTime? @default(now())
   updated_at       DateTime?
 
@@ -1009,11 +991,11 @@ enum RegistrationStatus {
 }
 
 model Ageingrecord {
-  id                       BigInt              @id @default(autoincrement())
-  project_id               BigInt?
-  flat_id                  BigInt?
-  customer_id              BigInt?
-  customer_flat            BigInt?
+  id                       String              @id @default(uuid())
+  project_id               String?
+  flat_id                  String?
+  customer_id              String?
+  customer_flat            String?
   booking_date             DateTime?
   total_amount             Float?
   ageing_days              Int?
@@ -1042,7 +1024,7 @@ model Ageingrecord {
 }
 
 model BanksList {
-  id         BigInt    @id @default(autoincrement())
+  id         String    @id @default(uuid())
   name       String?
   created_at DateTime  @default(now())
   updated_at DateTime?
@@ -1051,10 +1033,10 @@ model BanksList {
 }
 
 model Refundageingrecord {
-  id                   BigInt    @id @default(autoincrement())
-  project_id           BigInt?
-  flat_id              BigInt?
-  customer_id          BigInt?
+  id                   String    @id @default(uuid())
+  project_id           String?
+  flat_id              String?
+  customer_id          String?
   refund_amount        Float?
   refund_date          DateTime?
   refund_transactionid String?
@@ -1075,8 +1057,8 @@ enum CouponGiftsStatus {
 }
 
 model Coupongifts {
-  id                   BigInt            @id @default(autoincrement())
-  project_id           BigInt?
+  id                   String            @id @default(uuid())
+  project_id           String?
   name                 String?
   coupon_gift_pic_url  String?
   coupon_gift_pic_path String?
@@ -1091,11 +1073,11 @@ model Coupongifts {
 }
 
 model Rewards {
-  id                    BigInt    @id @default(autoincrement())
-  project_id            BigInt?
-  employee_id           BigInt?
-  customer_id           BigInt?
-  flat_id               BigInt?
+  id                    String    @id @default(uuid())
+  project_id            String?
+  employee_id           String?
+  customer_id           String?
+  flat_id               String?
   employee_otp          String?
   customer_otp          String?
   employee_otp_verified Boolean   @default(false)

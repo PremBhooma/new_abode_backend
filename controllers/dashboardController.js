@@ -57,7 +57,7 @@ exports.GetAllDashboardData = async (req, res) => {
         const employees = await prisma.employees.findMany({
             select: {
                 id: true,
-                uuid: true,
+                id: true,
                 name: true,
                 email: true,
                 phone_code: true,
@@ -76,7 +76,7 @@ exports.GetAllDashboardData = async (req, res) => {
         const employeesData = employees.map((employee) => {
             return {
                 id: employee.id,
-                uuid: employee.uuid,
+                id: employee.id,
                 name: employee.name,
                 email: employee.email,
                 phone_code: employee.phone_code,
@@ -125,7 +125,7 @@ exports.GetAllDashboardData = async (req, res) => {
             },
             select: {
                 id: true,
-                uuid: true,
+                id: true,
                 prefixes: true,
                 first_name: true,
                 last_name: true,
@@ -144,7 +144,7 @@ exports.GetAllDashboardData = async (req, res) => {
         const customersData = customers.map((customer) => {
             return {
                 id: customer.id,
-                uuid: customer.uuid,
+                id: customer.id,
                 prefixes: customer.prefixes,
                 first_name: customer.first_name,
                 last_name: customer.last_name,
@@ -204,7 +204,7 @@ exports.GetAllDashboardData = async (req, res) => {
             },
             select: {
                 id: true,
-                uuid: true,
+                id: true,
                 flat_no: true,
                 block_id: true,
                 floor_no: true,
@@ -226,7 +226,7 @@ exports.GetAllDashboardData = async (req, res) => {
         const unsoldFlatsData = unsoldFlatsRecent.map((flat) => {
             return {
                 id: flat.id,
-                uuid: flat.uuid,
+                id: flat.id,
                 flat_no: flat.flat_no,
                 block_id: flat.block_id,
                 block_name: flat.block?.block_name,
@@ -241,7 +241,7 @@ exports.GetAllDashboardData = async (req, res) => {
             where: flatProjectFilter,
             select: {
                 id: true,
-                uuid: true,
+                id: true,
                 flat_no: true,
                 block_id: true,
                 floor_no: true,
@@ -258,7 +258,7 @@ exports.GetAllDashboardData = async (req, res) => {
         const flatsData = flats.map((flat) => {
             return {
                 id: flat.id,
-                uuid: flat.uuid,
+                id: flat.id,
                 flat_no: flat.flat_no,
                 block_id: flat.block_id,
                 floor_no: flat.floor_no,
@@ -281,7 +281,7 @@ exports.GetAllDashboardData = async (req, res) => {
             where: paymentProjectFilter,
             select: {
                 id: true,
-                uuid: true,
+                id: true,
                 amount: true,
                 payment_method: true,
                 flat: {
@@ -312,7 +312,7 @@ exports.GetAllDashboardData = async (req, res) => {
         const payment_details = payments.map((payment) => {
             return {
                 id: payment?.id,
-                uuid: payment?.uuid,
+                id: payment?.id,
                 amount: payment?.amount,
                 payment_method: payment?.payment_method,
                 flat_no: payment?.flat?.flat_no,
@@ -349,7 +349,7 @@ exports.GetAllDashboardData = async (req, res) => {
             where: leadProjectFilter,
             select: {
                 id: true,
-                uuid: true,
+                id: true,
                 prefixes: true,
                 full_name: true,
                 email: true,
@@ -366,7 +366,7 @@ exports.GetAllDashboardData = async (req, res) => {
         const leads_details = leadsData.map((ele) => {
             return {
                 id: ele?.id,
-                uuid: ele?.uuid,
+                id: ele?.id,
                 prefixes: ele?.prefixes,
                 full_name: ele?.full_name,
                 email: ele?.email,
@@ -385,24 +385,24 @@ exports.GetAllDashboardData = async (req, res) => {
                 active_employees,
                 inactive_employees,
                 suspended_employees,
-                employeesData: serializeBigInt(employeesData),
+                employeesData: employeesData,
                 total_customers,
                 active_customers,
                 inactive_customers,
                 suspended_customers,
                 loan_delay_count, // Added loan delay count
-                customersData: serializeBigInt(customersData),
+                customersData: customersData,
                 total_flats,
                 sold_flats,
                 unsold_flats,
-                flatsData: serializeBigInt(flatsData),
-                unsoldFlatsData: serializeBigInt(unsoldFlatsData),
+                flatsData: flatsData,
+                unsoldFlatsData: unsoldFlatsData,
                 total_payments,
-                payment_details: serializeBigInt(payment_details),
+                payment_details: payment_details,
                 total_leads,
                 assigned_leads,
                 unassigned_leads,
-                leads_details: serializeBigInt(leads_details)
+                leads_details: leads_details
             }
         });
     } catch (error) {
@@ -439,7 +439,7 @@ exports.GetSearchGlobal = async (req, res) => {
             where: employeeCondition,
             select: {
                 id: true,
-                uuid: true,
+                id: true,
                 name: true,
                 email: true,
                 roledetails: {
@@ -461,7 +461,7 @@ exports.GetSearchGlobal = async (req, res) => {
             }
             return {
                 id: employee.id,
-                uuid: employee.uuid,
+                id: employee.id,
                 name: employee.name,
                 email: employee.email,
                 role_name: role_name
@@ -485,7 +485,7 @@ exports.GetSearchGlobal = async (req, res) => {
             where: customerCondition,
             select: {
                 id: true,
-                uuid: true,
+                id: true,
                 first_name: true,
                 last_name: true,
                 email: true,
@@ -499,7 +499,7 @@ exports.GetSearchGlobal = async (req, res) => {
         const customerDetails = customers.map((customer) => {
             return {
                 id: customer.id,
-                uuid: customer.uuid,
+                id: customer.id,
                 first_name: customer.first_name,
                 last_name: customer.last_name,
                 email: customer.email
@@ -527,7 +527,7 @@ exports.GetSearchGlobal = async (req, res) => {
             // skip: offset,
             select: {
                 id: true,
-                uuid: true,
+                id: true,
                 flat_no: true,
                 description: true,
                 block: {
@@ -552,7 +552,7 @@ exports.GetSearchGlobal = async (req, res) => {
         const flatDetails = flats.map((flat) => {
             return {
                 id: flat.id,
-                uuid: flat.uuid,
+                id: flat.id,
                 flat_no: flat.flat_no,
                 description: flat.description,
                 block_name: flat.block.block_name,
@@ -592,7 +592,7 @@ exports.GetSearchGlobal = async (req, res) => {
             // skip: offset,
             select: {
                 id: true,
-                uuid: true,
+                id: true,
                 amount: true,
                 payment_method: true,
                 trasnaction_id: true,
@@ -623,7 +623,7 @@ exports.GetSearchGlobal = async (req, res) => {
         const paymentDetails = payments.map((payment) => {
             return {
                 id: payment?.id,
-                uuid: payment?.uuid,
+                id: payment?.id,
                 amount: payment?.amount,
                 paymentMethod: payment?.payment_method,
                 flat_no: payment?.flat?.flat_no,
@@ -639,10 +639,10 @@ exports.GetSearchGlobal = async (req, res) => {
             status: "success",
             message: "Data fetched successfully",
             totalResults,
-            employees: serializeBigInt(employeeDetails),
-            customers: serializeBigInt(customerDetails),
-            flats: serializeBigInt(flatDetails),
-            payments: serializeBigInt(paymentDetails)
+            employees: employeeDetails,
+            customers: customerDetails,
+            flats: flatDetails,
+            payments: paymentDetails
         })
 
     } catch (error) {

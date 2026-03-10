@@ -1,0 +1,15 @@
+﻿OK: ageingRecordsController.js
+OK: authController.js
+FAIL: customerController.js - D:\qtis\new_abode\new_abode_backend\controllers\customerController.js:1067             ,             ^ System.Management.Automation.RemoteException SyntaxError: Unexpected token ','     at wrapSafe (node:internal/modules/cjs/loader:1638:18)     at checkSyntax (node:internal/main/check_syntax:78:3) System.Management.Automation.RemoteException Node.js v22.21.0
+OK: customerdocumentController.js
+OK: dashboardController.js
+OK: employeeController.js
+OK: flatController.js
+OK: flatdocumentController.js
+OK: generalController.js
+OK: groupOwnerController.js
+OK: leaddocumentController.js
+FAIL: leadsController.js - D:\qtis\new_abode\new_abode_backend\controllers\leadsController.js:851             ,             ^ System.Management.Automation.RemoteException SyntaxError: Unexpected token ','     at wrapSafe (node:internal/modules/cjs/loader:1638:18)     at checkSyntax (node:internal/main/check_syntax:78:3) System.Management.Automation.RemoteException Node.js v22.21.0
+OK: paymentsController.js
+OK: projectController.js
+OK: settingsController.js

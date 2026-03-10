@@ -22,7 +22,7 @@ const updateAgeingRecordTotal = async (flat_id, project_id, block_id, customer_i
         amount: true,
       },
       where: {
-        flat_id: BigInt(flat_id),
+        flat_id: flat_id,
       },
     });
 
@@ -31,8 +31,8 @@ const updateAgeingRecordTotal = async (flat_id, project_id, block_id, customer_i
     // Fetch grand_total from customerflat to calculate balance
     const customerFlat = await prisma.customerflat.findFirst({
       where: {
-        flat_id: BigInt(flat_id),
-        ...(customer_id ? { customer_id: BigInt(customer_id) } : {}),
+        flat_id: flat_id,
+        ...(customer_id ? { customer_id: customer_id } : {}),
       },
       select: {
         grand_total: true,
@@ -46,15 +46,15 @@ const updateAgeingRecordTotal = async (flat_id, project_id, block_id, customer_i
 
     // Update Ageing Record
     const whereClause = {
-      flat_id: BigInt(flat_id),
-      project_id: BigInt(project_id),
+      flat_id: flat_id,
+      project_id: project_id,
       flat: {
-        block_id: BigInt(block_id),
+        block_id: block_id,
       },
     };
 
     if (customer_id) {
-      whereClause.customer_id = BigInt(customer_id);
+      whereClause.customer_id = customer_id;
     }
 
     await prisma.ageingrecord.updateMany({
@@ -110,12 +110,14 @@ exports.addPayment = async (req, res) => {
       });
     }
 
-    const uuid = "ABDPT" + Math.floor(100000 + Math.random() * 900000).toString();
+    // REMOVED: const uuid = "ABDPT" + Math.floor(100000 + Math.random() * 900000).toString();
+    const { v4: uuidv4 } = require('uuid');
+    const paymentUuid = uuidv4();
     let receiptUrl = null;
     let receiptPath = null;
 
     if (receipt) {
-      const uploadDir = path.join(__dirname, "../uploads", `${uuid}`);
+      const uploadDir = path.join(__dirname, "../uploads", `${paymentUuid}`);
       if (!fs.existsSync(uploadDir)) {
         fs.mkdirSync(uploadDir, { recursive: true });
       }
@@ -129,12 +131,12 @@ exports.addPayment = async (req, res) => {
       fs.copyFileSync(tempReceiptPath, receiptPath);
       fs.unlinkSync(tempReceiptPath);
 
-      receiptUrl = `${process.env.API_URL}/uploads/${uuid}/${receipt.originalFilename}`;
+      receiptUrl = `${process.env.API_URL}/uploads/${paymentUuid}/${receipt.originalFilename}`;
     }
 
     const flatCost = await prisma.customerflat.findFirst({
       where: {
-        flat_id: BigInt(flat_id),
+        flat_id: flat_id,
       },
       select: {
         toatlcostofuint: true,
@@ -159,7 +161,7 @@ exports.addPayment = async (req, res) => {
         amount: true,
       },
       where: {
-        flat_id: BigInt(flat_id),
+        flat_id: flat_id,
       },
     });
 
@@ -179,24 +181,23 @@ exports.addPayment = async (req, res) => {
       // Check if it's the first payment for this flat, project, and customer
       const existingPaymentCount = await prisma.payments.count({
         where: {
-          flat_id: BigInt(flat_id),
-          project_id: BigInt(project_id),
-          customer_id: customer_id && customer_id !== "null" ? BigInt(customer_id) : null,
+          flat_id: flat_id,
+          project_id: project_id,
+          customer_id: customer_id && customer_id !== "null" ? customer_id : null,
         },
       });
 
       if (existingPaymentCount === 0) {
         await prisma.flat.update({
-          where: { id: BigInt(flat_id) },
+          where: { id: flat_id },
           data: { advance_payment: true },
         });
       }
 
       await prisma.payments.create({
         data: {
-          uuid: uuid,
-          flat_id: parseInt(flat_id),
-          customer_id: customer_id ? parseInt(customer_id) : null,
+          flat_id: flat_id,
+          customer_id: customer_id ? customer_id : null,
           amount: parseFloat(amount),
           payment_type: payment_type,
           payment_towards: payment_towards,
@@ -206,9 +207,9 @@ exports.addPayment = async (req, res) => {
           trasnaction_id: transactionid,
           receipt_path: receiptPath,
           receipt_url: receiptUrl,
-          added_by_employee_id: BigInt(employee_id),
+          added_by_employee_id: employee_id,
           comment: comment,
-          project_id: BigInt(project_id),
+          project_id: project_id,
         },
       });
 
@@ -216,8 +217,8 @@ exports.addPayment = async (req, res) => {
       if (customer_id !== "null") {
         await prisma.customeractivities.create({
           data: {
-            customer_id: BigInt(customer_id),
-            employee_id: BigInt(employee_id),
+            customer_id: customer_id,
+            employee_id: employee_id,
             ca_message: `Payment of ₹${amount} added via ${payment_method}`,
             employee_short_name: "C", // You might want to fetch this from employee data
             color_code: "green",
@@ -226,8 +227,8 @@ exports.addPayment = async (req, res) => {
       } else {
         await prisma.taskactivities.create({
           data: {
-            employee_id: BigInt(employee_id),
-            flat_id: parseInt(flat_id),
+            employee_id: employee_id,
+            flat_id: flat_id,
             ta_message: `Payment of ₹${amount} received via ${payment_method}`,
             employee_short_name: "P", // P for Payment
             color_code: "green",
@@ -307,7 +308,7 @@ exports.addBulkPayment = async (req, res) => {
       }
 
       const flatCost = await prisma.customerflat.findFirst({
-        where: { flat_id: BigInt(flat_id) },
+        where: { flat_id: flat_id },
         select: {
           toatlcostofuint: true,
           grand_total: true,
@@ -326,7 +327,7 @@ exports.addBulkPayment = async (req, res) => {
 
       const totalPayments = await prisma.payments.aggregate({
         _sum: { amount: true },
-        where: { flat_id: BigInt(flat_id) },
+        where: { flat_id: flat_id },
       });
 
       const existingPayments = totalPayments._sum.amount || 0;
@@ -368,12 +369,14 @@ exports.addBulkPayment = async (req, res) => {
           block_id, // Extract block_id
         } = row;
 
-        const uuid = "ABDPT" + Math.floor(100000 + Math.random() * 900000).toString();
+        // REMOVED: const uuid = "ABDPT" + Math.floor(100000 + Math.random() * 900000).toString();
+        const { v4: uuidv4 } = require('uuid');
+        const paymentUuid = uuidv4();
         let receiptUrl = null;
         let receiptPath = null;
 
         if (receipt) {
-          const uploadDir = path.join(__dirname, "../uploads", `${uuid}`);
+          const uploadDir = path.join(__dirname, "../uploads", `${paymentUuid}`);
           if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
 
           const tempReceiptPath = receipt.path || receipt.filepath;
@@ -381,16 +384,15 @@ exports.addBulkPayment = async (req, res) => {
             receiptPath = path.join(uploadDir, receipt.originalFilename);
             fs.copyFileSync(tempReceiptPath, receiptPath);
             fs.unlinkSync(tempReceiptPath);
-            receiptUrl = `${process.env.API_URL}/uploads/${uuid}/${receipt.originalFilename}`;
+            receiptUrl = `${process.env.API_URL}/uploads/${paymentUuid}/${receipt.originalFilename}`;
           }
         }
 
         await prisma.payments.create({
           data: {
-            uuid,
-            flat_id: parseInt(flat_id),
-            project_id: project_id ? BigInt(project_id) : null,
-            customer_id: customer_id ? parseInt(customer_id) : null,
+            flat_id: flat_id,
+            project_id: project_id ? project_id : null,
+            customer_id: customer_id ? customer_id : null,
             amount: parseFloat(amount),
             payment_type,
             payment_towards,
@@ -400,7 +402,7 @@ exports.addBulkPayment = async (req, res) => {
             trasnaction_id: transactionid,
             receipt_path: receiptPath,
             receipt_url: receiptUrl,
-            added_by_employee_id: BigInt(employee_id),
+            added_by_employee_id: employee_id,
             comment,
           },
         });
@@ -409,8 +411,8 @@ exports.addBulkPayment = async (req, res) => {
         if (customer_id !== "null") {
           await prisma.customeractivities.create({
             data: {
-              customer_id: BigInt(customer_id),
-              employee_id: BigInt(employee_id),
+              customer_id: customer_id,
+              employee_id: employee_id,
               ca_message: `Payment of ₹${amount} added via ${payment_method}`,
               employee_short_name: "C",
               color_code: "green",
@@ -419,8 +421,8 @@ exports.addBulkPayment = async (req, res) => {
         } else {
           await prisma.taskactivities.create({
             data: {
-              employee_id: BigInt(employee_id),
-              flat_id: parseInt(flat_id),
+              employee_id: employee_id,
+              flat_id: flat_id,
               ta_message: `Payment of ₹${amount} received via ${payment_method}`,
               employee_short_name: "P",
               color_code: "green",
@@ -489,7 +491,7 @@ exports.updatePayment = async (req, res) => {
 
       // Find existing payment
       const payment = await prisma.payments.findFirst({
-        where: { uuid: payment_uid },
+        where: { id: payment_uid },
       });
 
       if (!payment) {
@@ -501,7 +503,7 @@ exports.updatePayment = async (req, res) => {
 
       const flatCost = await prisma.customerflat.findFirst({
         where: {
-          flat_id: BigInt(flat_id),
+          flat_id: flat_id,
         },
         select: {
           grand_total: true,
@@ -525,7 +527,7 @@ exports.updatePayment = async (req, res) => {
           amount: true,
         },
         where: {
-          flat_id: BigInt(flat_id),
+          flat_id: flat_id,
         },
       });
 
@@ -577,10 +579,10 @@ exports.updatePayment = async (req, res) => {
 
       // Update payment record
       const updatedPayment = await prisma.payments.update({
-        where: { uuid: payment_uid },
+        where: { id: payment_uid },
         data: {
-          flat_id: parseInt(flat_id),
-          customer_id: customer_id ? parseInt(customer_id) : payment.customer_id,
+          flat_id: flat_id,
+          customer_id: customer_id ? customer_id : payment.customer_id,
           amount: parseFloat(amount),
           payment_type: payment_type,
           payment_towards: payment_towards,
@@ -591,7 +593,7 @@ exports.updatePayment = async (req, res) => {
           receipt_path: receiptPath,
           receipt_url: receiptUrl,
           comment: comment,
-          project_id: BigInt(project_id),
+          project_id: project_id,
         },
       });
 
@@ -600,8 +602,8 @@ exports.updatePayment = async (req, res) => {
         // Track in customeractivities if customer exists
         await prisma.customeractivities.create({
           data: {
-            customer_id: BigInt(customer_id),
-            employee_id: BigInt(employee_id),
+            customer_id: customer_id,
+            employee_id: employee_id,
             ca_message: `Payment updated to ₹${amount} via ${payment_method}`,
             employee_short_name: "P",
             color_code: "blue",
@@ -612,8 +614,8 @@ exports.updatePayment = async (req, res) => {
         // Track in taskactivities if no customer
         await prisma.taskactivities.create({
           data: {
-            employee_id: BigInt(employee_id),
-            flat_id: parseInt(flat_id),
+            employee_id: employee_id,
+            flat_id: flat_id,
             ta_message: `Payment updated to ₹${amount} via ${payment_method}`,
             employee_short_name: "P",
             color_code: "blue",
@@ -653,7 +655,7 @@ exports.getSinglePayment = async (req, res) => {
   try {
     const payment = await prisma.payments.findFirst({
       where: {
-        uuid: paymentuid,
+        id: paymentuid,
       },
       include: {
         flat: {
@@ -673,8 +675,8 @@ exports.getSinglePayment = async (req, res) => {
     }
 
     const transaction_details = {
-      payment_id: payment.id.toString(),
-      uuid: payment.uuid,
+      payment_id: payment.id,
+      id: payment.id,
       amount: payment.amount,
       payment_type: payment.payment_type,
       payment_towards: payment.payment_towards,
@@ -686,9 +688,8 @@ exports.getSinglePayment = async (req, res) => {
       comment: payment.comment,
       flat: payment.flat
         ? {
-          id: payment.flat.id.toString(),
+          id: payment.flat.id,
           flat_no: payment.flat.flat_no,
-          uuid: payment.flat.uuid,
           floor_no: payment.flat.floor_no,
           square_feet: payment.flat.square_feet,
           type: payment.flat.type,
@@ -700,13 +701,12 @@ exports.getSinglePayment = async (req, res) => {
           furnished_status: payment.flat.furnished_status,
           furnished_status: payment.flat.furnished_status,
           block_name: payment.flat.block?.block_name || "N/A",
-          project_id: payment.project_id?.toString(),
+          project_id: payment.project_id,
         }
         : null,
       customer: payment.customer
         ? {
-          id: payment.customer.id.toString(),
-          uuid: payment.customer.uuid,
+          id: payment.customer.id,
           prefixes: payment.customer.prefixes,
           first_name: payment.customer.first_name,
           last_name: payment.customer.last_name,
@@ -768,16 +768,16 @@ exports.getAllPayments = async (req, res) => {
     }
 
     if (customer_id) {
-      searchCondition.customer_id = parseInt(customer_id);
+      searchCondition.customer_id = customer_id;
     }
 
     if (flat_id) {
-      searchCondition.flat_id = BigInt(flat_id);
+      searchCondition.flat_id = flat_id;
     }
 
     if (selected_block_id) {
       searchCondition.flat = {
-        block_id: BigInt(selected_block_id),
+        block_id: selected_block_id,
       };
     }
 
@@ -827,13 +827,13 @@ exports.getAllPayments = async (req, res) => {
 
     const paymentdetails = payments.map((payment) => ({
       payment_id: payment?.id?.toString(),
-      uuid: payment?.uuid,
-      flat_uuid: payment?.flat?.uuid,
+      id: payment?.id,
+      flat_uuid: payment?.flat?.id,
       flat_number: payment?.flat?.flat_no,
       block_name: payment?.flat?.block?.block_name,
       customer_prefixes: payment?.customer?.prefixes,
       customer_first_name: payment?.customer?.first_name,
-      customer_uuid: payment?.customer?.uuid,
+      customer_uuid: payment?.customer?.id,
       customer_last_name: payment?.customer?.last_name,
       customer_email: payment?.customer?.email,
       customer_mobile_number: payment?.customer?.phone_number,
@@ -888,16 +888,16 @@ exports.getAllPrintPayments = async (req, res) => {
     }
 
     if (customer_id) {
-      searchCondition.customer_id = parseInt(customer_id);
+      searchCondition.customer_id = customer_id;
     }
 
     if (flat_id) {
-      searchCondition.flat_id = BigInt(flat_id);
+      searchCondition.flat_id = flat_id;
     }
 
     if (selected_block_id) {
       searchCondition.flat = {
-        block_id: BigInt(selected_block_id),
+        block_id: selected_block_id,
       };
     }
 
@@ -936,12 +936,12 @@ exports.getAllPrintPayments = async (req, res) => {
 
     const paymentdetails = payments.map((payment) => ({
       payment_id: payment?.id?.toString(),
-      uuid: payment?.uuid,
-      flat_uuid: payment?.flat?.uuid,
+      id: payment?.id,
+      flat_uuid: payment?.flat?.id,
       flat_number: payment?.flat?.flat_no,
       block_name: payment?.flat?.block?.block_name,
       customer_first_name: payment?.customer?.first_name,
-      customer_uuid: payment?.customer?.uuid,
+      customer_uuid: payment?.customer?.id,
       customer_last_name: payment?.customer?.last_name,
       customer_mobile_number: payment?.customer?.phone_number,
       amount: payment?.amount,
@@ -978,7 +978,7 @@ exports.GetAllPaymentsByCustomer = async (req, res) => {
 
     const customers = await prisma.customers.findFirst({
       where: {
-        uuid: customerUuid,
+        id: customerUuid,
       },
       select: {
         id: true,
@@ -1003,7 +1003,7 @@ exports.GetAllPaymentsByCustomer = async (req, res) => {
     }
 
     if (flat_id) {
-      searchCondition.flat_id = BigInt(flat_id);
+      searchCondition.flat_id = flat_id;
     }
 
     if (startDate && endDate) {
@@ -1044,7 +1044,7 @@ exports.GetAllPaymentsByCustomer = async (req, res) => {
 
     const paymentdetails = payments.map((payment) => ({
       payment_id: payment?.id?.toString(),
-      uuid: payment?.uuid,
+      id: payment?.id,
       flat_number: payment?.flat?.flat_no,
       block_name: payment?.flat?.block?.block_name,
       customer_prefixes: payment?.customer?.prefixes,
@@ -1083,7 +1083,7 @@ exports.GetAllPrintPaymentsByCustomer = async (req, res) => {
   try {
     const customers = await prisma.customers.findFirst({
       where: {
-        uuid: customerUuid,
+        id: customerUuid,
       },
       select: {
         id: true,
@@ -1108,7 +1108,7 @@ exports.GetAllPrintPaymentsByCustomer = async (req, res) => {
     }
 
     if (flat_id) {
-      searchCondition.flat_id = BigInt(flat_id);
+      searchCondition.flat_id = flat_id;
     }
 
     if (startDate && endDate) {
@@ -1143,7 +1143,7 @@ exports.GetAllPrintPaymentsByCustomer = async (req, res) => {
 
     const paymentdetails = payments.map((payment) => ({
       payment_id: payment?.id?.toString(),
-      uuid: payment?.uuid,
+      id: payment?.id,
       flat_number: payment?.flat?.flat_no,
       block_name: payment?.flat?.block?.block_name,
       customer_first_name: payment?.customer?.first_name,
@@ -1185,7 +1185,7 @@ exports.deletePayment = async (req, res) => {
 
   try {
     const payment = await prisma.payments.findFirst({
-      where: { id: parseInt(payment_id) },
+      where: { id: payment_id },
       include: {
         flat: true,
       },
@@ -1204,14 +1204,14 @@ exports.deletePayment = async (req, res) => {
     const flatId = payment.flat_id;
 
     await prisma.payments.delete({
-      where: { id: parseInt(payment_id) },
+      where: { id: payment_id },
     });
 
     if (customerId && customerId !== "null") {
       await prisma.customeractivities.create({
         data: {
-          customer_id: BigInt(customerId),
-          employee_id: BigInt(employee_id),
+          customer_id: customerId,
+          employee_id: employee_id,
           ca_message: `Payment of ₹${paymentAmount} via ${paymentMethod} was deleted`,
           employee_short_name: "P",
           color_code: "red",
@@ -1221,7 +1221,7 @@ exports.deletePayment = async (req, res) => {
     } else {
       await prisma.taskactivities.create({
         data: {
-          employee_id: BigInt(employee_id),
+          employee_id: employee_id,
           flat_id: flatId,
           ta_message: `Payment of ₹${paymentAmount} via ${paymentMethod} was deleted`,
           employee_short_name: "P",
@@ -1326,7 +1326,7 @@ exports.uploadPayments = async (req, res) => {
 
         await prisma.payments.create({
           data: {
-            uuid: "ABDPT" + Math.floor(100000000 + Math.random() * 900000000).toString(),
+            id: "ABDPT" + Math.floor(100000000 + Math.random() * 900000000).toString(),
             amount: parsedAmount,
             payment_type: paymentType,
             payment_towards: paymentTowards,
@@ -1498,7 +1498,7 @@ exports.uploadParsedPayments = async (req, res) => {
           dbFlat = await prisma.flat.findFirst({
             where: {
               flat_no: flat.toString(),
-              project_id: BigInt(projectId),
+              project_id: projectId,
             },
           });
 
@@ -1543,7 +1543,7 @@ exports.uploadParsedPayments = async (req, res) => {
           try {
             const newPayment = await prisma.parsedpayments.create({
               data: {
-                uuid: "ABDPT" + Math.floor(100000000 + Math.random() * 900000000).toString(),
+                id: "ABDPT" + Math.floor(100000000 + Math.random() * 900000000).toString(),
                 amount: parsedAmount,
                 payment_type: paymentType,
                 payment_towards: paymentTowards,
@@ -1553,9 +1553,9 @@ exports.uploadParsedPayments = async (req, res) => {
                 transaction_id: transactionId,
                 flat: flat,
                 block: block || null,
-                project_id: projectId ? BigInt(projectId) : null,
+                project_id: projectId ? projectId : null,
                 comment: comment,
-                added_by_employee_id: employee_id ? BigInt(employee_id) : null,
+                added_by_employee_id: employee_id ? employee_id : null,
               },
             });
             inserted.push(newPayment);
@@ -1600,7 +1600,7 @@ exports.getAllParsedPayments = async (req, res) => {
 
     return res.status(200).json({
       status: "success",
-      data: serializeBigInt(payment),
+      data: payment,
     });
   } catch (error) {
     logger.error(`Get All Parsed Payments Error: ${error.message}, File: paymentsController-getAllParsedPayments`);
@@ -1613,11 +1613,11 @@ exports.getAllParsedPayments = async (req, res) => {
 
 exports.deleteParsedPaymentRecord = async (req, res) => {
   try {
-    const { uuid } = req.body;
+    const { id } = req.body;
 
     const payment = await prisma.parsedpayments.delete({
       where: {
-        uuid: uuid,
+        id: id,
       },
     });
 
@@ -1640,7 +1640,7 @@ exports.getCustomerPaymentsforexcel = async (req, res) => {
   try {
     const customer = await prisma.customers.findFirst({
       where: {
-        uuid: customerUuid,
+        id: customerUuid,
       },
     });
 
@@ -1667,7 +1667,7 @@ exports.getCustomerPaymentsforexcel = async (req, res) => {
     }
 
     if (flat_id) {
-      searchCondition.flat_id = BigInt(flat_id);
+      searchCondition.flat_id = flat_id;
     }
 
     if (startDate && endDate) {
@@ -1706,7 +1706,7 @@ exports.getCustomerPaymentsforexcel = async (req, res) => {
 
     const paymentsData = payments.map((payment) => ({
       payment_id: payment?.id?.toString(),
-      uuid: payment?.uuid,
+      id: payment?.id,
       flat_number: payment?.flat?.flat_no,
       customer_first_name: payment?.customer?.first_name,
       customer_last_name: payment?.customer?.last_name,
@@ -1724,7 +1724,7 @@ exports.getCustomerPaymentsforexcel = async (req, res) => {
 
     const worksheetData = paymentsData?.map((payment, index) => ({
       "S.No": index + 1,
-      "Payment Ref Id": payment.uuid,
+      "Payment Ref Id": payment.id,
       "Transaction ID": payment.transaction_id,
       "Flat No": payment.flat_number,
       "Customer Name": payment.customer_first_name + payment.customer_last_name,
@@ -1908,11 +1908,11 @@ exports.getPaymentsForExcel = async (req, res) => {
     }
 
     if (flat_id) {
-      searchCondition.flat_id = parseInt(flat_id);
+      searchCondition.flat_id = flat_id;
     }
 
     if (customer_id) {
-      searchCondition.customer_id = parseInt(customer_id);
+      searchCondition.customer_id = customer_id;
     }
 
     if (startDate && endDate) {
@@ -1948,7 +1948,7 @@ exports.getPaymentsForExcel = async (req, res) => {
 
     const paymentsData = payments.map((payment) => ({
       payment_id: payment?.id?.toString(),
-      uuid: payment?.uuid,
+      id: payment?.id,
       flat_number: payment?.flat?.flat_no,
       customer_prefixes: payment?.customer?.prefixes,
       customer_first_name: payment?.customer?.first_name,
@@ -1970,7 +1970,7 @@ exports.getPaymentsForExcel = async (req, res) => {
     if (customer_id) {
       customerName = await prisma.customers.findFirst({
         where: {
-          id: BigInt(customer_id),
+          id: customer_id,
         },
         select: {
           first_name: true,
@@ -1981,7 +1981,7 @@ exports.getPaymentsForExcel = async (req, res) => {
 
     const worksheetData = paymentsData?.map((payment, index) => ({
       "S.No": index + 1,
-      "Payment Ref Id": payment.uuid,
+      "Payment Ref Id": payment.id,
       "Transaction ID": payment.transaction_id,
       "Flat No": payment.flat_number,
       "Customer Name": payment.customer_prefixes + " " + payment.customer_first_name + " " + payment.customer_last_name,
@@ -2146,7 +2146,7 @@ exports.getPaymentsSummaryByFlat = async (req, res) => {
     if (allocatedProjectIds !== null) {
       // Non-admin: filter by allocated projects, or by specific project_id if provided
       if (project_id && project_id !== 'undefined' && project_id !== '') {
-        searchCondition.project_id = BigInt(project_id);
+        searchCondition.project_id = project_id;
       } else {
         searchCondition.project_id = { in: allocatedProjectIds };
       }
@@ -2155,12 +2155,12 @@ exports.getPaymentsSummaryByFlat = async (req, res) => {
 
     // Filter by block
     if (block_id && block_id !== 'undefined' && block_id !== '') {
-      searchCondition.block_id = BigInt(block_id);
+      searchCondition.block_id = block_id;
     }
 
     // Filter by specific flat
     if (flat_id && flat_id !== 'undefined' && flat_id !== '') {
-      searchCondition.id = BigInt(flat_id);
+      searchCondition.id = flat_id;
     }
 
     // Search by flat number
@@ -2183,7 +2183,7 @@ exports.getPaymentsSummaryByFlat = async (req, res) => {
       },
       select: {
         id: true,
-        uuid: true,
+        id: true,
         flat_no: true,
         floor_no: true,
         project: {
@@ -2205,7 +2205,7 @@ exports.getPaymentsSummaryByFlat = async (req, res) => {
             customer: {
               select: {
                 id: true,
-                uuid: true,
+                id: true,
                 first_name: true,
                 last_name: true,
                 prefixes: true,
@@ -2229,8 +2229,8 @@ exports.getPaymentsSummaryByFlat = async (req, res) => {
       const balance = grandTotal - totalPaid;
 
       return {
-        flat_id: flat.id.toString(),
-        flat_uuid: flat.uuid,
+        flat_id: flat.id,
+        flat_uuid: flat.id,
         flat_no: flat.flat_no,
         floor_no: flat.floor_no,
         project_id: flat.project?.id?.toString() || null,
@@ -2247,7 +2247,7 @@ exports.getPaymentsSummaryByFlat = async (req, res) => {
 
     return res.status(200).json({
       status: "success",
-      data: serializeBigInt(flatsSummary),
+      data: flatsSummary,
       pagination: {
         total: totalCount,
         offset: parseInt(offset),

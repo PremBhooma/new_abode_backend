@@ -1,0 +1,84 @@
+﻿node.exe : Environment 
+variables loaded from .env
+At C:\Program 
+Files\nodejs\npx.ps1:28 
+char:12
++   $input | & $NODE_EXE 
+$NPX_CLI_JS $args
++            ~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~
+    + CategoryInfo        
+      : NotSpecified: 
+(Envir    onment 
+variables loaded     from 
+.env:String) [],     
+RemoteException
+    + 
+FullyQualifiedErrorId     
+: NativeCommandError
+ 
+Prisma schema loaded from prisma\schema.prisma
+Datasource "db": MySQL database "abodedb" at "localhost:3306"
+
+Applying migration `20260107093047_initial_db`
+Applying migration `20260109062537_tadd_amenities_project_id`
+Applying migration `20260109073537_project_extra_fields`
+Applying migration `20260109093843_type_flat_updated`
+Applying migration `20260111074350_manjeera`
+Applying migration `20260113104422_projects_payments`
+Applying migration `20260113105226_add_project_id_to_parsed_payments`
+Applying migration `20260121072044_add_ageingrecord_relations`
+Applying migration `20260121073350_load_staus`
+Applying migration `20260121091639_ageing_records`
+Applying migration `20260121101232_ageingdays`
+Applying migration `20260122052809_loan_status_are_updated`
+Applying migration `20260122060412_registration_status`
+Applying migration `20260122103042_custom_note`
+Applying migration `20260122132836_lead_stategs`
+Applying migration `20260123050114_lead_name_chnage`
+Applying migration `20260303092936_new`
+
+Database reset successful
+
+The following migration(s) have been applied:
+
+migrations/
+  ΓööΓöÇ 20260107093047_initial_db/
+    ΓööΓöÇ migration.sql
+  ΓööΓöÇ 20260109062537_tadd_amenities_project_id/
+    ΓööΓöÇ migration.sql
+  ΓööΓöÇ 20260109073537_project_extra_fields/
+    ΓööΓöÇ migration.sql
+  ΓööΓöÇ 20260109093843_type_flat_updated/
+    ΓööΓöÇ migration.sql
+  ΓööΓöÇ 20260111074350_manjeera/
+    ΓööΓöÇ migration.sql
+  ΓööΓöÇ 20260113104422_projects_payments/
+    ΓööΓöÇ migration.sql
+  ΓööΓöÇ 20260113105226_add_project_id_to_parsed_payments/
+    ΓööΓöÇ migration.sql
+  ΓööΓöÇ 20260121072044_add_ageingrecord_relations/
+    ΓööΓöÇ migration.sql
+  ΓööΓöÇ 20260121073350_load_staus/
+    ΓööΓöÇ migration.sql
+  ΓööΓöÇ 20260121091639_ageing_records/
+    ΓööΓöÇ migration.sql
+  ΓööΓöÇ 20260121101232_ageingdays/
+    ΓööΓöÇ migration.sql
+  ΓööΓöÇ 20260122052809_loan_status_are_updated/
+    ΓööΓöÇ migration.sql
+  ΓööΓöÇ 20260122060412_registration_status/
+    ΓööΓöÇ migration.sql
+  ΓööΓöÇ 20260122103042_custom_note/
+    ΓööΓöÇ migration.sql
+  ΓööΓöÇ 20260122132836_lead_stategs/
+    ΓööΓöÇ migration.sql
+  ΓööΓöÇ 20260123050114_lead_name_chnage/
+    ΓööΓöÇ migration.sql
+  ΓööΓöÇ 20260303092936_new/
+    ΓööΓöÇ migration.sql
+
+Running generate... (Use --skip-generate to skip the generators)
+[2K[1A[2K[GRunning generate... - Prisma Client
+[2K[1A[2K[GΓ£ö Generated Prisma Client (v6.15.0) to .\generated\prisma in 592ms
+

@@ -1,0 +1,17 @@
+﻿Γ£à ageingRecordsController.js: 49 replacements
+ΓÅ¡∩╕Å  authController.js: no changes needed
+Γ£à customerController.js: 132 replacements
+Γ£à customerdocumentController.js: 16 replacements
+Γ£à dashboardController.js: 27 replacements
+Γ£à employeeController.js: 27 replacements
+Γ£à flatController.js: 111 replacements
+Γ£à flatdocumentController.js: 20 replacements
+Γ£à generalController.js: 47 replacements
+Γ£à groupOwnerController.js: 4 replacements
+Γ£à leaddocumentController.js: 16 replacements
+Γ£à leadsController.js: 145 replacements
+Γ£à paymentsController.js: 83 replacements
+Γ£à projectController.js: 21 replacements
+Γ£à settingsController.js: 52 replacements
+
+≡ƒÄë Total replacements across all files: 750

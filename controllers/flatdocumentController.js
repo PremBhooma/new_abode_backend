@@ -24,7 +24,7 @@ function getFileIconType(fileType) {
 const deleteFolderRecursively = async (prismaInstance, folderId) => {
   // Find all direct children of the folde
   const childFolders = await prismaInstance.flatfilemanager.findMany({
-    where: { parent_id: parseInt(folderId) },
+    where: { parent_id: folderId },
   });
 
   // Recursively delete child folders/files
@@ -35,7 +35,7 @@ const deleteFolderRecursively = async (prismaInstance, folderId) => {
 
   // After all child folders/files are deleted, delete the current folder
   await prismaInstance.flatfilemanager.delete({
-    where: { id: parseInt(folderId) },
+    where: { id: folderId },
   });
 };
 
@@ -53,7 +53,7 @@ exports.createFolder = async (req, res) => {
   try {
     const flatdetails = await prisma.flat.findFirst({
       where: {
-        uuid: flat_uid,
+        id: flat_uid,
       },
       include: {
         customer: true, // Include customer relation if available
@@ -85,7 +85,7 @@ exports.createFolder = async (req, res) => {
 
     if (currentFolderUuid) {
       parentFolder = await prisma.flatfilemanager.findUnique({
-        where: { uuid: currentFolderUuid }, // Check by UUID first
+        where: { id: currentFolderUuid }, // Check by UUID first
       });
 
       if (!parentFolder) {
@@ -131,7 +131,7 @@ exports.createFolder = async (req, res) => {
     // Insert the folder into the database
     await prisma.flatfilemanager.create({
       data: {
-        uuid: folderUid,
+        id: folderUid,
         name: folderName,
         file_icon_type: fileIconType,
         file_type: "folder",
@@ -150,7 +150,7 @@ exports.createFolder = async (req, res) => {
       // Flat activity (similar to UpdateFlat API)
       prisma.taskactivities.create({
         data: {
-          employee_id: BigInt(employee_id),
+          employee_id: employee_id,
           flat_id: flatdetails.id,
           ta_message: `Folder "${folderName}" created`,
           employee_short_name: "F",
@@ -174,11 +174,12 @@ exports.createFolder = async (req, res) => {
 };
 
 exports.getDocuments = async (req, res) => {
-  const { currentFolderId, flat_uid } = req.query;
+  const { currentFolderId, flat_uid, flat_id, flatId } = req.query;
+  const target_flat_id = flat_uid || flat_id || flatId;
   try {
     const flatdetails = await prisma.flat.findFirst({
       where: {
-        uuid: flat_uid,
+        id: target_flat_id,
       },
     });
 
@@ -201,8 +202,8 @@ exports.getDocuments = async (req, res) => {
     });
 
     const documentsdata = documents.map((doc) => ({
-      id: doc.id.toString(),
-      uuid: doc.uuid,
+      id: doc.id,
+      id: doc.id,
       name: doc.name,
       file_type: doc.file_type,
       file_icon_type: doc.file_icon_type,
@@ -219,7 +220,7 @@ exports.getDocuments = async (req, res) => {
       // Fetch the current folder's parent ID only if currentFolderId is defined and valid
       const currentFolderdocuments = await prisma.flatfilemanager.findFirst({
         where: {
-          id: BigInt(currentFolderId), // Convert to BigInt safely
+          id: currentFolderId, // Convert to BigInt safely
         },
       });
       superparent = currentFolderdocuments?.parent_id || null;
@@ -255,7 +256,7 @@ exports.deleteFolder = async (req, res) => {
   try {
     // Get folder details with flat and customer info
     const folder = await prisma.flatfilemanager.findUnique({
-      where: { id: parseInt(folder_id) },
+      where: { id: folder_id },
     });
 
     if (!folder) {
@@ -284,7 +285,7 @@ exports.deleteFolder = async (req, res) => {
     const activityPromises = [
       prisma.taskactivities.create({
         data: {
-          employee_id: BigInt(employee_id),
+          employee_id: employee_id,
           flat_id: flatId,
           ta_message: `Deleted folder "${folderName}"`,
           employee_short_name: "F",
@@ -298,8 +299,8 @@ exports.deleteFolder = async (req, res) => {
       activityPromises.push(
         prisma.customeractivities.create({
           data: {
-            customer_id: BigInt(customerId),
-            employee_id: BigInt(employee_id),
+            customer_id: customerId,
+            employee_id: employee_id,
             ca_message: `Folder "${folderName}" deleted from file manager`,
             employee_short_name: "F",
             color_code: "red",
@@ -357,7 +358,7 @@ exports.uploadFile = async (req, res) => {
 
     const flatdetails = await prisma.flat.findFirst({
       where: {
-        uuid: flat_uid,
+        id: flat_uid,
       },
     });
 
@@ -408,14 +409,14 @@ exports.uploadFile = async (req, res) => {
       await prisma.flatfilemanager.create({
         data: {
           name: originalFilename,
-          uuid: fileUid,
+          id: fileUid,
           file_type: new_file_type,
           file_url: `${process.env.API_URL}/uploads/flats/${flat_uid}/${folderPath}/${newFilename}`,
           // file_icon_type: fileIconType,
           file_path: `${folderPath}/${newFilename}`,
-          parent_id: currentFolderId && !isNaN(currentFolderId) ? BigInt(currentFolderId) : null,
+          parent_id: currentFolderId ? currentFolderId : null,
           flat_id: flatdetails?.id,
-          added_by: parseInt(user_id),
+          added_by: user_id,
           created_at: new Date(),
           updated_at: new Date(),
         },
@@ -426,7 +427,7 @@ exports.uploadFile = async (req, res) => {
         // Flat activity
         prisma.taskactivities.create({
           data: {
-            employee_id: BigInt(employee_id),
+            employee_id: employee_id,
             flat_id: flatdetails.id,
             ta_message: `File "${originalFilename}" uploaded`,
             employee_short_name: "F",
@@ -463,7 +464,7 @@ exports.deleteFile = async (req, res) => {
   try {
     // Get file details with flat and customer info
     const file = await prisma.flatfilemanager.findUnique({
-      where: { id: parseInt(file_id) },
+      where: { id: file_id },
     });
 
     if (!file) {
@@ -489,14 +490,27 @@ exports.deleteFile = async (req, res) => {
 
     // Database operations
     await prisma.flatfilemanager.delete({
-      where: { id: parseInt(file_id) },
+      where: { id: file_id },
     });
+
+    // Check and clear cost sheet reference in customerflat if this file was a cost sheet
+    if (file.file_path && file.file_path.startsWith('cost_sheets/')) {
+      await prisma.customerflat.updateMany({
+        where: {
+          cost_sheet_path: file.file_path,
+        },
+        data: {
+          cost_sheet_path: null,
+          cost_sheet_url: null,
+        },
+      });
+    }
 
     // Activity tracking (both flat and customer activities)
     const activityPromises = [
       prisma.taskactivities.create({
         data: {
-          employee_id: BigInt(employee_id),
+          employee_id: employee_id,
           flat_id: flatId,
           ta_message: `Deleted file "${fileName}"`,
           employee_short_name: "F",
@@ -510,8 +524,8 @@ exports.deleteFile = async (req, res) => {
       activityPromises.push(
         prisma.customeractivities.create({
           data: {
-            customer_id: BigInt(customerId),
-            employee_id: BigInt(employee_id),
+            customer_id: customerId,
+            employee_id: employee_id,
             ca_message: `File "${fileName}" deleted from file manager`,
             employee_short_name: "F",
             color_code: "red",
@@ -553,7 +567,7 @@ exports.flatsSyncFileSystemWithDB = async (req, res) => {
   try {
     // Get flat details
     const flatdetails = await prisma.flat.findFirst({
-      where: { uuid: flat_uid },
+      where: { id: flat_uid },
     });
 
     if (!flatdetails) {
@@ -568,7 +582,7 @@ exports.flatsSyncFileSystemWithDB = async (req, res) => {
       where: { flat_id: flatdetails.id },
       select: {
         id: true,
-        uuid: true,
+        id: true,
         name: true,
         file_path: true,
         file_type: true,
@@ -618,7 +632,7 @@ exports.flatsSyncFileSystemWithDB = async (req, res) => {
           // Create new DB entry
           const newEntry = await prisma.flatfilemanager.create({
             data: {
-              uuid: fileUid,
+              id: fileUid,
               name: file.name,
               file_icon_type: getFileIconType(fileType),
               file_type: isDirectory ? "folder" : fileType,
@@ -627,7 +641,7 @@ exports.flatsSyncFileSystemWithDB = async (req, res) => {
               file_url: `${process.env.API_URL}/uploads/flats/${flat_uid}/${relativePath}`,
               parent_id: parentId,
               flat_id: flatdetails.id,
-              added_by: parseInt(employee_id),
+              added_by: employee_id,
               created_at: new Date(),
               updated_at: new Date(),
             },
@@ -644,7 +658,7 @@ exports.flatsSyncFileSystemWithDB = async (req, res) => {
           // await prisma.customeractivities.create({
           //   data: {
           //     customer_id: flat_uid.id,
-          //     employee_id: parseInt(employee_id),
+          //     employee_id: employee_id,
           //     ca_message: `File system sync: ${isDirectory ? 'Folder' : 'File'} "${file.name}" was added to database`,
           //     employee_short_name: "S", // 'S' for System
           //     color_code: "blue", // Using blue for sync operations

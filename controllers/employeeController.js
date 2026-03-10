@@ -36,7 +36,6 @@ const GetAllEmployees = async (req, res) => {
       skip: offset,
       select: {
         id: true,
-        uuid: true,
         name: true,
         email: true,
         phone_code: true,
@@ -77,8 +76,7 @@ const GetAllEmployees = async (req, res) => {
       }
 
       return {
-        id: employee?.id?.toString(),
-        uuid: employee?.uuid,
+        id: employee?.id,
         name: employee?.name,
         email: employee?.email,
         phone_code: employee?.phone_code,
@@ -136,7 +134,7 @@ const AddEmployee = async (req, res) => {
       });
     }
 
-    const uuid = "CRMEMP" + Math.floor(100000000 + Math.random() * 900000000).toString();
+    // REMOVED: // REMOVED: // REMOVED: const uuid = "CRMEMP" + Math.floor(100000000 + Math.random() * 900000000).toString();
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
@@ -147,10 +145,9 @@ const AddEmployee = async (req, res) => {
         phone_code: phone_code,
         gender: gender,
         phone_number: phone_number,
-        reporting_head_id: parseInt(reporting_head),
-        role_id: parseInt(role_id),
+        reporting_head_id: reporting_head || null,
+        role_id: role_id,
         password: hashedPassword,
-        uuid: uuid,
       },
     });
 
@@ -182,7 +179,7 @@ const getRoles = async (req, res) => {
     if (roles !== null) {
       roles.map((role) => {
         data.push({
-          value: role.id.toString(),
+          value: role.id,
           label: role.name,
         });
       });
@@ -218,7 +215,7 @@ const getReportingHeads = async (req, res) => {
     }
     const reporting_head_details = reporting_head.map((user) => {
       return {
-        value: user.id.toString(),
+        value: user.id,
         label: user.name,
       };
     });
@@ -244,7 +241,7 @@ const getSingleEmployeeData = async (req, res) => {
   try {
     const employee = await prisma.employees.findFirst({
       where: {
-        id: BigInt(single_user_id),
+        id: single_user_id,
       },
       select: {
         id: true,
@@ -286,12 +283,12 @@ const getSingleEmployeeData = async (req, res) => {
     let role_id = null;
     let role_name = null;
     if (employee.role_id !== null) {
-      role_id = employee.role_id.toString();
+      role_id = employee.role_id;
       role_name = employee.roledetails.name;
     }
 
     const employeeData = {
-      id: employee.id.toString(),
+      id: employee.id,
       name: employee.name,
       email: employee.email,
       phone_code: employee.phone_code,
@@ -324,7 +321,7 @@ const UpdateEmployee = async (req, res) => {
   try {
     const { singleuser_id, name, email, phone_code, phone_number, gender, role_id, reporting_head_id, joinedAt, status } = req.body;
 
-    const employeeId = BigInt(singleuser_id);
+    const employeeId = singleuser_id;
 
     const employee = await prisma.employees.findFirst({
       where: {
@@ -373,7 +370,7 @@ const DeleteEmployee = async (req, res) => {
   try {
     await prisma.employees.delete({
       where: {
-        id: BigInt(singleuser_id),
+        id: singleuser_id,
       },
     });
     return res.status(200).json({
@@ -395,7 +392,7 @@ const updateUserPassword = async (req, res) => {
   try {
     const user = await prisma.employees.findUnique({
       where: {
-        id: parseInt(singleuser_id),
+        id: singleuser_id,
       },
     });
     if (!user) {
@@ -409,7 +406,7 @@ const updateUserPassword = async (req, res) => {
 
     const updatedPassword = await prisma.employees.update({
       where: {
-        id: parseInt(singleuser_id),
+        id: singleuser_id,
       },
       data: {
         password: hashedPassword,
@@ -471,7 +468,7 @@ const getAllRoleData = async (req, res) => {
 
     const employee = await prisma.employees.findFirst({
       where: {
-        id: parseInt(user_id),
+        id: user_id,
       },
       select: {
         role_id: true,
@@ -482,7 +479,7 @@ const getAllRoleData = async (req, res) => {
 
     const roleName = await prisma.roles.findFirst({
       where: {
-        id: parseInt(role_id),
+        id: role_id,
       },
       select: {
         name: true,
@@ -514,7 +511,7 @@ const getAllRoleData = async (req, res) => {
     } else {
       roles.forEach((role) => {
         data.push({
-          role_id: role.id.toString(),
+          role_id: role.id,
           role_name: role.name,
           status: role.status,
         });
@@ -544,7 +541,7 @@ const updateRole = async (req, res) => {
       where: {
         name: role_name,
         NOT: {
-          id: parseInt(role_id),
+          id: role_id,
         },
       },
     });
@@ -556,7 +553,7 @@ const updateRole = async (req, res) => {
     }
     await prisma.roles.update({
       where: {
-        id: parseInt(role_id),
+        id: role_id,
       },
       data: {
         name: role_name,
@@ -580,7 +577,7 @@ const deleteRole = async (req, res) => {
   try {
     await prisma.roles.delete({
       where: {
-        id: parseInt(role_id),
+        id: role_id,
       },
     });
     return res.status(200).json({
@@ -618,7 +615,7 @@ const updatePermissions = async (req, res) => {
 
     const isroleexists = await prisma.rolepermissions.findFirst({
       where: {
-        role_id: parseInt(roleId),
+        role_id: roleId,
       },
     });
 
@@ -634,7 +631,7 @@ const updatePermissions = async (req, res) => {
     } else {
       await prisma.rolepermissions.create({
         data: {
-          role_id: parseInt(roleId),
+          role_id: roleId,
           permissions: JSON.stringify(combinedData),
         },
       });
@@ -659,7 +656,7 @@ const getRolesPermissions = async (req, res) => {
   try {
     const rolePermissions = await prisma.rolepermissions.findFirst({
       where: {
-        role_id: parseInt(roleId),
+        role_id: roleId,
       },
     });
 
@@ -702,8 +699,8 @@ const uploadEmployeeProfilePic = async (req, res) => {
 
     try {
       const employee = await prisma.employees.findFirst({
-        where: { id: BigInt(employee_id) },
-        select: { uuid: true, profile_pic_path: true },
+        where: { id: employee_id },
+        select: { id: true, profile_pic_path: true },
       });
 
       if (!employee) {
@@ -718,7 +715,7 @@ const uploadEmployeeProfilePic = async (req, res) => {
         return res.status(400).json({ status: "error", message: "File path is missing" });
       }
 
-      const uploadDir = path.join(__dirname, "../uploads/employees", `${employee.uuid}`);
+      const uploadDir = path.join(__dirname, "../uploads/employees", `${employee.id}`);
       if (!fs.existsSync(uploadDir)) {
         fs.mkdirSync(uploadDir, { recursive: true });
       }
@@ -731,10 +728,10 @@ const uploadEmployeeProfilePic = async (req, res) => {
       fs.copyFileSync(tempFilePath, savedFilePath);
       fs.unlinkSync(tempFilePath);
 
-      const profileUrl = `${process.env.API_URL}/uploads/employees/${employee.uuid}/${profilePicture.originalFilename}`;
+      const profileUrl = `${process.env.API_URL}/uploads/employees/${employee.id}/${profilePicture.originalFilename}`;
 
       await prisma.employees.update({
-        where: { id: BigInt(employee_id) },
+        where: { id: employee_id },
         data: {
           profile_pic_url: profileUrl,
           profile_pic_path: savedFilePath,
@@ -770,7 +767,7 @@ const GetAllEmployeesList = async (req, res) => {
     if (employees !== null) {
       employees.map((role) => {
         data.push({
-          value: role.id.toString(),
+          value: role.id,
           label: role.name,
         });
       })
@@ -802,7 +799,7 @@ const allocateProjects = async (req, res) => {
     await prisma.$transaction(async (prisma) => {
       // Find the employee to make sure they exist
       const employee = await prisma.employees.findUnique({
-        where: { id: BigInt(employee_id) },
+        where: { id: employee_id },
       });
 
       if (!employee) {
@@ -811,15 +808,15 @@ const allocateProjects = async (req, res) => {
 
       // Delete existing permissions for the employee
       await prisma.employeeProjectPermission.deleteMany({
-        where: { employee_id: BigInt(employee_id) }
+        where: { employee_id: employee_id }
       });
 
       // Insert new permissions
       if (project_ids && project_ids.length > 0) {
         await prisma.employeeProjectPermission.createMany({
           data: project_ids.map(id => ({
-            employee_id: BigInt(employee_id),
-            project_id: BigInt(id)
+            employee_id: employee_id,
+            project_id: id
           }))
         });
       }
@@ -842,7 +839,7 @@ const getAllocatedProjects = async (req, res) => {
   const { employee_id } = req.params;
   try {
     const employee = await prisma.employees.findUnique({
-      where: { id: BigInt(employee_id) },
+      where: { id: employee_id },
       include: {
         project_permissions: {
           select: {
@@ -859,7 +856,7 @@ const getAllocatedProjects = async (req, res) => {
       });
     }
 
-    const project_ids = employee.project_permissions.map(p => p.project_id.toString());
+    const project_ids = employee.project_permissions.map(p => p.project_id);
 
     return res.status(200).json({
       status: "success",

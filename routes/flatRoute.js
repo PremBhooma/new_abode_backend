@@ -6,7 +6,7 @@ const authenticateToken = require('../middleware/authenticateToken')
 
 router.post('/flats/add-flat', authenticateToken, flatController.AddFlat);
 router.get('/get-all-flats', authenticateToken, flatController.GetAllFlats);
-router.get('/get-flat/:uuid', authenticateToken, flatController.GetFlatByUUID);
+router.get('/get-flat/:id', authenticateToken, flatController.GetFlatById);
 router.post('/update-flat', authenticateToken, flatController.UpdateFlat);
 router.post('/delete-flat', authenticateToken, flatController.DeleteFlat);
 router.post('/add-flat-note', authenticateToken, flatController.AddFlatnote);
