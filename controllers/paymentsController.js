@@ -230,6 +230,18 @@ exports.addPayment = async (req, res) => {
 
     const { remaining, total_paid, grand_total, found } = await getPaymentCategoryRemaining(flat_id, customer_id, payment_towards);
 
+    if (transactionid && transactionid !== "null" && transactionid.trim() !== "") {
+      const existingTxn = await prisma.payments.findFirst({
+        where: { trasnaction_id: transactionid }
+      });
+      if (existingTxn) {
+        return res.status(200).json({
+          status: "error",
+          message: `Transaction ID ${transactionid} already exists`,
+        });
+      }
+    }
+
     if (found) {
       if (Number(amount) > remaining) {
         return res.status(200).json({
@@ -370,7 +382,7 @@ exports.addBulkPayment = async (req, res) => {
 
     // 🔹 Step 2: Validate each row
     for (let row of rows) {
-      const { amount, payment_type, payment_towards, payment_method, flat_id, employee_id, project_id, customer_id } = row;
+      const { amount, payment_type, payment_towards, payment_method, flat_id, employee_id, project_id, customer_id, transactionid } = row;
 
       if (!amount || !payment_type || !payment_towards || !payment_method || !flat_id || !employee_id || !project_id) {
         errors.push({
@@ -405,6 +417,22 @@ exports.addBulkPayment = async (req, res) => {
           found: false,
           accumulated_total: 0
         };
+      }
+
+      if (transactionid && transactionid !== "null" && transactionid.trim() !== "") {
+        const existingTxn = await prisma.payments.findFirst({
+          where: { trasnaction_id: transactionid }
+        });
+
+        if (!localAccumulator.seenTxns) localAccumulator.seenTxns = new Set();
+
+        if (existingTxn || localAccumulator.seenTxns.has(transactionid)) {
+          errors.push({
+            flat_id,
+            message: `Flat: ${flatCost.flat.flat_no} (Block: ${flatCost.flat.block?.block_name || ''}) → Transaction ID ${transactionid} already exists`,
+          });
+        }
+        localAccumulator.seenTxns.add(transactionid);
       }
 
       const flatAcc = localAccumulator[flat_id];
@@ -619,6 +647,21 @@ exports.updatePayment = async (req, res) => {
       }
 
       const { remaining, total_paid, grand_total, found } = await getPaymentCategoryRemaining(flat_id, customer_id, payment_towards, payment_uid);
+
+      if (transactionid && transactionid !== "null" && transactionid.trim() !== "") {
+        const existingTxn = await prisma.payments.findFirst({
+          where: {
+            trasnaction_id: transactionid,
+            id: { not: payment_uid }
+          }
+        });
+        if (existingTxn) {
+          return res.status(200).json({
+            status: "error",
+            message: `Transaction ID ${transactionid} already exists`,
+          });
+        }
+      }
 
       if (found) {
         if (Number(amount) > remaining) {
@@ -1573,6 +1616,22 @@ exports.uploadParsedPayments = async (req, res) => {
         if (isNaN(parsedAmount)) {
           skipReason.push("Amount must be a valid number");
           isValid = false;
+        }
+
+        // Validate Duplicate Transaction ID
+        if (transactionId && transactionId !== "null" && transactionId !== "") {
+          const existingTxn = await prisma.payments.findFirst({
+            where: { trasnaction_id: transactionId }
+          });
+
+          if (!localAccumulator.seenTxns) localAccumulator.seenTxns = new Set();
+
+          if (existingTxn || localAccumulator.seenTxns.has(transactionId)) {
+            skipReason.push(`Transaction ID ${transactionId} already exists`);
+            isValid = false;
+          } else {
+            localAccumulator.seenTxns.add(transactionId);
+          }
         }
 
         // Context Resolution
