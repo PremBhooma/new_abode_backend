@@ -531,8 +531,8 @@ module.exports.GetFlatById = async (req, res) => {
         },
         manjeeraMeterCharge: {
           actual: getCustomerFlat.manjeera_meter_charge || 0,
-          paid: getPaidAmount(["Manjeera Meter Charge", "Manjeera Meter", "Manjeera Connection Meter"]),
-          remaining: (getCustomerFlat.manjeera_meter_charge || 0) - getPaidAmount(["Manjeera Meter Charge", "Manjeera Meter", "Manjeera Connection Meter"])
+          paid: getPaidAmount(["Manjeera Meter Charge", "Manjeera Meter", "Manjeera Connection Meter", "Manjeera Meter Connection"]),
+          remaining: (getCustomerFlat.manjeera_meter_charge || 0) - getPaidAmount(["Manjeera Meter Charge", "Manjeera Meter", "Manjeera Connection Meter", "Manjeera Meter Connection"])
         },
         registration: {
           actual: getCustomerFlat.registrationcharge || 0,
@@ -1413,7 +1413,7 @@ exports.SearchSoldFlatsForCustomer = async (req, res) => {
       }
 
       const data = flatDetails.map((flat) => {
-        const customerFlat = flat.Customerflat[0]; // assuming only one per flat
+        const customerFlat = flat.Customerflat && flat.Customerflat.length > 0 ? flat.Customerflat[0] : null;
         const customerName = customerFlat?.customer ? `${customerFlat.customer.first_name} ${customerFlat.customer.last_name}` : "Unknown Customer";
         return {
           value: customerFlat?.id?.toString() || flat.id, // fallback to flat id if no customerFlat
@@ -1421,7 +1421,6 @@ exports.SearchSoldFlatsForCustomer = async (req, res) => {
           project_id: flat.project?.id?.toString(),
           project_name: flat.project?.project_name,
           flat_no: flat.flat_no,
-          id: flat.id,
           id: flat.id,
           block_name: flat.block?.block_name,
           floor_no: flat.floor_no,
@@ -1467,7 +1466,6 @@ exports.SearchSoldFlatsForCustomer = async (req, res) => {
       where: searchCondition,
       select: {
         id: true,
-        id: true,
         first_name: true,
         last_name: true,
         email: true,
@@ -1499,7 +1497,6 @@ exports.SearchSoldFlatsForCustomer = async (req, res) => {
         customer: {
           select: {
             id: true,
-            id: true,
             first_name: true,
             last_name: true,
             email: true,
@@ -1512,7 +1509,6 @@ exports.SearchSoldFlatsForCustomer = async (req, res) => {
           select: {
             id: true,
             flat_no: true,
-            id: true,
             floor_no: true,
             square_feet: true,
             type: true,
@@ -1544,7 +1540,6 @@ exports.SearchSoldFlatsForCustomer = async (req, res) => {
         value: entry.id, // customerFlat ID
         label: `${entry.flat.project?.project_name || "Project"} - ${entry.flat.flat_no} - ${customerName}`,
         flat_no: entry.flat.flat_no,
-        id: entry.flat.id,
         id: entry.flat.id,
         project_id: entry.flat.project?.id?.toString(),
         project_name: entry.flat.project?.project_name,

@@ -2180,8 +2180,8 @@ module.exports.GetCustomerFlats = async (req, res) => {
         },
         manjeeraMeterCharge: {
           actual: note.manjeera_meter_charge || 0,
-          paid: getPaidAmount(["Manjeera Meter Charge", "Manjeera Meter", "Manjeera Connection Meter"]),
-          remaining: (note.manjeera_meter_charge || 0) - getPaidAmount(["Manjeera Meter Charge", "Manjeera Meter", "Manjeera Connection Meter"])
+          paid: getPaidAmount(["Manjeera Meter Charge", "Manjeera Meter", "Manjeera Connection Meter", "Manjeera Meter Connection"]),
+          remaining: (note.manjeera_meter_charge || 0) - getPaidAmount(["Manjeera Meter Charge", "Manjeera Meter", "Manjeera Connection Meter", "Manjeera Meter Connection"])
         },
         registration: {
           actual: note.registrationcharge || 0,
