@@ -167,7 +167,12 @@ exports.createFolder = async (req, res) => {
 };
 
 exports.getDocuments = async (req, res) => {
-  const { currentFolderId, customer_id_ref } = req.query;
+  let { currentFolderId, customer_id_ref } = req.query;
+
+  if (currentFolderId === "null" || currentFolderId === "undefined" || currentFolderId === "") {
+    currentFolderId = null;
+  }
+
   try {
     const customerdetails = await prisma.customers.findFirst({
       where: {
@@ -201,7 +206,7 @@ exports.getDocuments = async (req, res) => {
       file_icon_type: doc.file_icon_type,
       file_path: doc.file_path,
       file_url: doc.file_url,
-      uploadedBy: doc.employeedetails.name,
+      uploadedBy: doc.employeedetails?.name || "System",
       created_at: doc.created_at,
       updated_at: doc.updated_at,
     }));
@@ -312,7 +317,12 @@ exports.uploadFile = async (req, res) => {
     const uploadedFiles = files.uploadfile; // The field name from the FormData
     const folderPath = fields.folderPath[0];
     const customer_id_ref = fields.customer_id_ref[0];
-    const currentFolderId = fields.currentFolderId[0];
+
+    let currentFolderId = fields.currentFolderId ? fields.currentFolderId[0] : null;
+    if (currentFolderId === "null" || currentFolderId === "undefined" || currentFolderId === "") {
+      currentFolderId = null;
+    }
+
     const fileType = fields.file_type[0];
     const user_id = fields.user_id[0];
     const employee_id = fields.employee_id[0];

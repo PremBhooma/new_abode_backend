@@ -2827,6 +2827,7 @@ exports.GetCustomersForExcel = async (req, res) => {
       { header: "Country of Citizenship", key: "Country of Citizenship" },
       { header: "Country of Residence", key: "Country of Residence" },
       { header: "Mother Tongue", key: "Mother Tongue" },
+      { header: "Project Name", key: "Project Name" },
       // { header: "Name of POA", key: "Name of POA" },
       // { header: "Holder POA", key: "Holder POA" },
       // { header: "Years at Correspondence Address", key: "Years at Correspondence Address" },
