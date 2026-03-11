@@ -2141,8 +2141,9 @@ module.exports.GetCustomerFlats = async (req, res) => {
       );
 
       const getPaidAmount = (towards) => {
+        const lowerTowards = towards.map(t => t.toLowerCase());
         return matchingPayments
-          .filter(p => towards.includes(p.payment_towards))
+          .filter(p => p.payment_towards && lowerTowards.includes(p.payment_towards.toLowerCase()))
           .reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0);
       };
 

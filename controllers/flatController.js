@@ -492,8 +492,9 @@ module.exports.GetFlatById = async (req, res) => {
     if (getCustomerFlat) {
       const getPaidAmount = (towards) => {
         if (!flat.payments) return 0;
+        const lowerTowards = towards.map(t => t.toLowerCase());
         return flat.payments
-          .filter(p => towards.includes(p.payment_towards))
+          .filter(p => p.payment_towards && lowerTowards.includes(p.payment_towards.toLowerCase()))
           .reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0);
       };
 
