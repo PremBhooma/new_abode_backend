@@ -4131,9 +4131,9 @@ exports.getFlatPaymentDetails = async (req, res) => {
             amount: true,
             payment_date: true,
             payment_type: true,
+            payment_towards: true,
             payment_method: true,
-            trasnaction_id: true,
-            id: true
+            trasnaction_id: true
           }
         }
       }
