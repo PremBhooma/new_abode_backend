@@ -130,11 +130,7 @@ exports.updateCompanyInfo = async (req, res) => {
     const { company_name, email, phone_number, addressone, addresstwo, city, state, country, pincode } = req.body;
 
     try {
-        const existingCompanyInfo = await prisma.companyinfo.findFirst({
-            where: {
-                id: 1,
-            },
-        });
+        const existingCompanyInfo = await prisma.companyinfo.findFirst();
 
         const dataToUpdate = {
             companyname: company_name,
@@ -154,7 +150,7 @@ exports.updateCompanyInfo = async (req, res) => {
             });
         } else {
             await prisma.companyinfo.update({
-                where: { id: 1 },
+                where: { id: existingCompanyInfo.id },
                 data: dataToUpdate,
             });
         }
