@@ -2534,7 +2534,7 @@ exports.ConvertLeadToCustomer = async (req, res) => {
       }
     }
     const existingPhone = await prisma.customers.findFirst({
-      where: { phone_code, phone_number, project_id: project_id ? project_id : undefined },
+      where: { phone_code, phone_number, project_id: lead?.project_id ? lead.project_id : undefined },
     });
     if (existingPhone) {
       return res
