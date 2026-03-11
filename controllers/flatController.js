@@ -1439,7 +1439,7 @@ exports.SearchSoldFlatsForCustomer = async (req, res) => {
 
       return res.status(200).json({
         status: "success",
-        data: serializedata,
+        data: data,
       });
     }
 
@@ -1564,7 +1564,7 @@ exports.SearchSoldFlatsForCustomer = async (req, res) => {
 
     return res.status(200).json({
       status: "success",
-      data: serializedata,
+      data: data,
     });
   } catch (error) {
     logger.error(`Search Sold Flats For Customer Error: ${error.message}, File: flatController-SearchSoldFlatsForCustomer`);
