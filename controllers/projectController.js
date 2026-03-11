@@ -187,7 +187,7 @@ exports.addProject = async (req, res) => {
 
 exports.updateProject = async (req, res) => {
     const {
-        project_name, project_address, project_corner_price, project_east_price, project_six_floor_onwards_price, project_rewards,
+        id, project_name, project_address, project_corner_price, project_east_price, project_six_floor_onwards_price, project_rewards,
         gst_percentage, manjeera_connection_charges, manjeera_meter_charges, documentation_fee, registration_percentage,
         registration_base_charge, maintenance_rate_per_sqft, maintenance_duration_months, corpus_fund
     } = req.body;
