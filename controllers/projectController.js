@@ -1,5 +1,6 @@
 const logger = require("../helper/logger");
 const prisma = require("../utils/client");
+const { v4: uuidv4 } = require('uuid');
 
 // ============================================== Project Start ====================================== //
 
@@ -148,7 +149,7 @@ exports.addProject = async (req, res) => {
     } = req.body;
 
     try {
-        const newUuid = "PROJ" + Math.floor(100000000 + Math.random() * 900000000).toString();
+        const newUuid = uuidv4();
 
         await prisma.project.create({
             data: {
@@ -194,7 +195,7 @@ exports.updateProject = async (req, res) => {
 
     try {
         if (!id) {
-            const newUuid = "PROJ" + Math.floor(100000000 + Math.random() * 900000000).toString();
+            const newUuid = uuidv4();
 
             await prisma.project.create({
                 data: {
@@ -487,7 +488,7 @@ exports.addBlock = async (req, res) => {
             });
         }
 
-        const newUuid = "CRMEMP" + Math.floor(100000000 + Math.random() * 900000000).toString();
+        const newUuid = uuidv4();
 
         await prisma.block.create({
             data: {
