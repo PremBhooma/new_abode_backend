@@ -944,10 +944,10 @@ exports.EditLead = async (req, res) => {
             ? correspondence_country
             : correspondenceAddress.country,
           state: correspondence_state
-            ? Number(correspondence_state)
+            ? correspondence_state
             : correspondenceAddress.state,
           city: correspondence_city
-            ? Number(correspondence_city)
+            ? correspondence_city
             : correspondenceAddress.city,
           address: correspondence_address || correspondenceAddress.address,
           pincode: correspondence_pincode || correspondenceAddress.pincode,
@@ -977,9 +977,9 @@ exports.EditLead = async (req, res) => {
             ? permanent_country
             : permanentAddress.country,
           state: permanent_state
-            ? Number(permanent_state)
+            ? permanent_state
             : permanentAddress.state,
-          city: permanent_city ? Number(permanent_city) : permanentAddress.city,
+          city: permanent_city ? permanent_city : permanentAddress.city,
           address: permanent_address || permanentAddress.address,
           pincode: permanent_pincode || permanentAddress.pincode,
           updated_at: new Date(),
