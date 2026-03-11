@@ -4099,6 +4099,14 @@ exports.getFlatPaymentDetails = async (req, res) => {
         Customerflat: {
           select: {
             grand_total: true,
+            toatlcostofuint: true,
+            gst: true,
+            corpusfund: true,
+            maintenancecharge: true,
+            documentaionfee: true,
+            manjeera_connection_charge: true,
+            manjeera_meter_charge: true,
+            registrationcharge: true,
             application_date: true,
             Ageingrecord: {
               select: {
@@ -4148,6 +4156,57 @@ exports.getFlatPaymentDetails = async (req, res) => {
     const totalPaid = payments.reduce((sum, p) => sum + (p.amount || 0), 0);
     const balance = grandTotal - totalPaid;
 
+    const getPaidAmount = (keywords) => {
+      const lowerKeywords = keywords.map(kw => kw.toLowerCase());
+      return payments.reduce((sum, p) => {
+        const match = p.payment_towards && lowerKeywords.includes(p.payment_towards.toLowerCase());
+        return match ? sum + (p.amount || 0) : sum;
+      }, 0);
+    };
+
+    const paymentSummary = {
+      flat: {
+        actual: customerFlat?.toatlcostofuint || 0,
+        paid: getPaidAmount(["Flat", "Flat Cost", "Base Price", "Flat Cost (Base Price)"]),
+        remaining: (customerFlat?.toatlcostofuint || 0) - getPaidAmount(["Flat", "Flat Cost", "Base Price", "Flat Cost (Base Price)"])
+      },
+      gst: {
+        actual: customerFlat?.gst || 0,
+        paid: getPaidAmount(["GST"]),
+        remaining: (customerFlat?.gst || 0) - getPaidAmount(["GST"])
+      },
+      corpusFund: {
+        actual: customerFlat?.corpusfund || 0,
+        paid: getPaidAmount(["Corpus Fund"]),
+        remaining: (customerFlat?.corpusfund || 0) - getPaidAmount(["Corpus Fund"])
+      },
+      maintenanceCharges: {
+        actual: customerFlat?.maintenancecharge || 0,
+        paid: getPaidAmount(["Maintenance Charges", "Maintenance"]),
+        remaining: (customerFlat?.maintenancecharge || 0) - getPaidAmount(["Maintenance Charges", "Maintenance"])
+      },
+      documentationFee: {
+        actual: customerFlat?.documentaionfee || 0,
+        paid: getPaidAmount(["Documentation Fee", "Documentation", "Documentation Charges"]),
+        remaining: (customerFlat?.documentaionfee || 0) - getPaidAmount(["Documentation Fee", "Documentation", "Documentation Charges"])
+      },
+      manjeeraConnectionCharge: {
+        actual: customerFlat?.manjeera_connection_charge || 0,
+        paid: getPaidAmount(["Manjeera Connection Charge", "Manjeera Connection"]),
+        remaining: (customerFlat?.manjeera_connection_charge || 0) - getPaidAmount(["Manjeera Connection Charge", "Manjeera Connection"])
+      },
+      manjeeraMeterCharge: {
+        actual: customerFlat?.manjeera_meter_charge || 0,
+        paid: getPaidAmount(["Manjeera Meter Charge", "Manjeera Meter", "Manjeera Connection Meter", "Manjeera Meter Connection"]),
+        remaining: (customerFlat?.manjeera_meter_charge || 0) - getPaidAmount(["Manjeera Meter Charge", "Manjeera Meter", "Manjeera Connection Meter", "Manjeera Meter Connection"])
+      },
+      registration: {
+        actual: customerFlat?.registrationcharge || 0,
+        paid: getPaidAmount(["Registration", "Registration Charge", "Registration Charges"]),
+        remaining: (customerFlat?.registrationcharge || 0) - getPaidAmount(["Registration", "Registration Charge", "Registration Charges"])
+      }
+    };
+
     const result = {
       flat_no: flatDetails.flat_no,
       project_name: flatDetails.project?.project_name || null,
@@ -4160,7 +4219,8 @@ exports.getFlatPaymentDetails = async (req, res) => {
       payment_history: payments,
       advance_payment: totalPaid > 0,
       application_date: customerFlat?.application_date || null,
-      loan_status: customerFlat?.Ageingrecord?.[0]?.loan_Status || null
+      loan_status: customerFlat?.Ageingrecord?.[0]?.loan_Status || null,
+      paymentSummary
     };
 
     return res.status(200).json({

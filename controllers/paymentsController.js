@@ -71,6 +71,78 @@ const updateAgeingRecordTotal = async (flat_id, project_id, block_id, customer_i
   }
 };
 
+const getPaymentCategoryRemaining = async (flat_id, customer_id, payment_towards, exclude_payment_id = null) => {
+  const customerFlat = await prisma.customerflat.findFirst({
+    where: {
+      flat_id: flat_id,
+      ...(customer_id && customer_id !== "null" ? { customer_id: customer_id } : {}),
+    },
+    orderBy: { created_at: "desc" }
+  });
+
+  if (!customerFlat) return { actual: 0, paid: 0, remaining: 0, found: false, grand_total: 0, total_paid: 0 };
+
+  const allPayments = await prisma.payments.findMany({
+    where: {
+      flat_id: flat_id,
+      ...(exclude_payment_id ? { id: { not: exclude_payment_id } } : {})
+    },
+    select: { amount: true, payment_towards: true }
+  });
+
+  const getPaidAmount = (keywords) => {
+    const lowerKeywords = keywords.map(kw => kw.toLowerCase());
+    return allPayments.reduce((sum, p) => {
+      const match = p.payment_towards && lowerKeywords.includes(p.payment_towards.toLowerCase());
+      return match ? sum + (p.amount || 0) : sum;
+    }, 0);
+  };
+
+  let actual = 0;
+  let paid = 0;
+
+  const ptLower = (payment_towards || '').toLowerCase();
+
+  if (['flat', 'flat cost', 'base price', 'flat cost (base price)'].includes(ptLower)) {
+    actual = customerFlat.toatlcostofuint || 0;
+    paid = getPaidAmount(['Flat', 'Flat Cost', 'Base Price', 'Flat Cost (Base Price)']);
+  } else if (['gst'].includes(ptLower)) {
+    actual = customerFlat.gst || 0;
+    paid = getPaidAmount(['GST']);
+  } else if (['corpus fund'].includes(ptLower)) {
+    actual = customerFlat.corpusfund || 0;
+    paid = getPaidAmount(["Corpus Fund"]);
+  } else if (['maintenance charges', 'maintenance'].includes(ptLower)) {
+    actual = customerFlat.maintenancecharge || 0;
+    paid = getPaidAmount(["Maintenance Charges", "Maintenance"]);
+  } else if (['documentation fee', 'documentation', 'documentation charges'].includes(ptLower)) {
+    actual = customerFlat.documentaionfee || 0;
+    paid = getPaidAmount(["Documentation Fee", "Documentation", "Documentation Charges"]);
+  } else if (['manjeera connection charge', 'manjeera connection'].includes(ptLower)) {
+    actual = customerFlat.manjeera_connection_charge || 0;
+    paid = getPaidAmount(["Manjeera Connection Charge", "Manjeera Connection"]);
+  } else if (['manjeera meter charge', 'manjeera meter', 'manjeera connection meter', 'manjeera meter connection'].includes(ptLower)) {
+    actual = customerFlat.manjeera_meter_charge || 0;
+    paid = getPaidAmount(["Manjeera Meter Charge", "Manjeera Meter", "Manjeera Connection Meter", "Manjeera Meter Connection"]);
+  } else if (['registration', 'registration charge', 'registration charges'].includes(ptLower)) {
+    actual = customerFlat.registrationcharge || 0;
+    paid = getPaidAmount(["Registration", "Registration Charge", "Registration Charges"]);
+  } else {
+    // Fallback if category doesn't match standard keywords
+    actual = customerFlat.grand_total || 0;
+    paid = allPayments.reduce((sum, p) => sum + (p.amount || 0), 0);
+  }
+
+  return {
+    actual,
+    paid,
+    remaining: actual - paid,
+    found: true,
+    grand_total: customerFlat.grand_total || 0,
+    total_paid: allPayments.reduce((sum, p) => sum + (p.amount || 0), 0)
+  };
+};
+
 exports.addPayment = async (req, res) => {
   const form = new multiparty.Form({
     maxFieldsSize: 100 * 1024 * 1024, // 100MB for form fields
@@ -156,23 +228,23 @@ exports.addPayment = async (req, res) => {
       });
     }
 
-    const totalPayments = await prisma.payments.aggregate({
-      _sum: {
-        amount: true,
-      },
-      where: {
-        flat_id: flat_id,
-      },
-    });
+    const { remaining, total_paid, grand_total, found } = await getPaymentCategoryRemaining(flat_id, customer_id, payment_towards);
 
-    const existingPayments = totalPayments._sum.amount || 0;
-    const newTotal = existingPayments + Number(amount);
+    if (found) {
+      if (Number(amount) > remaining) {
+        return res.status(200).json({
+          status: "error",
+          message: `Payment amount (₹${amount}) exceeds the remaining balance (₹${remaining}) for ${payment_towards}`,
+        });
+      }
 
-    if (newTotal > flatCost?.grand_total) {
-      return res.status(200).json({
-        status: "error",
-        message: `Total payments cannot exceed flat cost`,
-      });
+      const newTotal = total_paid + Number(amount);
+      if (newTotal > grand_total) {
+        return res.status(200).json({
+          status: "error",
+          message: `Total payments cannot exceed flat cost`,
+        });
+      }
     }
 
     await prisma.parsedpayments.deleteMany();
@@ -294,10 +366,11 @@ exports.addBulkPayment = async (req, res) => {
 
     const rows = Object.values(rowsMap);
     const errors = [];
+    const localAccumulator = {};
 
     // 🔹 Step 2: Validate each row
     for (let row of rows) {
-      const { amount, payment_type, payment_towards, payment_method, flat_id, employee_id, project_id } = row;
+      const { amount, payment_type, payment_towards, payment_method, flat_id, employee_id, project_id, customer_id } = row;
 
       if (!amount || !payment_type || !payment_towards || !payment_method || !flat_id || !employee_id || !project_id) {
         errors.push({
@@ -312,7 +385,6 @@ exports.addBulkPayment = async (req, res) => {
         select: {
           toatlcostofuint: true,
           grand_total: true,
-          grand_total: true,
           flat: { select: { flat_no: true, block_id: true, block: { select: { block_name: true } } } },
         },
       });
@@ -325,19 +397,43 @@ exports.addBulkPayment = async (req, res) => {
       // Append block_id to row for later use
       row.block_id = flatCost.flat.block_id;
 
-      const totalPayments = await prisma.payments.aggregate({
-        _sum: { amount: true },
-        where: { flat_id: flat_id },
-      });
+      if (!localAccumulator[flat_id]) {
+        localAccumulator[flat_id] = {
+          categories: {},
+          total_paid: 0,
+          grand_total: 0,
+          found: false,
+          accumulated_total: 0
+        };
+      }
 
-      const existingPayments = totalPayments._sum.amount || 0;
-      const newTotal = existingPayments + Number(row.amount);
+      const flatAcc = localAccumulator[flat_id];
+      if (!flatAcc.categories[payment_towards]) {
+        const { remaining, total_paid, grand_total, found } = await getPaymentCategoryRemaining(flat_id, customer_id, payment_towards);
+        flatAcc.categories[payment_towards] = { remaining, accumulated_category: 0 };
+        flatAcc.total_paid = total_paid;
+        flatAcc.grand_total = grand_total;
+        flatAcc.found = found;
+      }
 
-      if (newTotal > flatCost?.grand_total) {
-        errors.push({
-          flat_id,
-          message: `Flat: ${flatCost.flat.flat_no} (Block: ${flatCost.flat.block.block_name}) → Total payments cannot exceed flat cost`,
-        });
+      if (flatAcc.found) {
+        const catAcc = flatAcc.categories[payment_towards];
+        catAcc.accumulated_category += Number(amount);
+        flatAcc.accumulated_total += Number(amount);
+
+        if (catAcc.accumulated_category > catAcc.remaining) {
+          errors.push({
+            flat_id,
+            message: `Flat: ${flatCost.flat.flat_no} (Block: ${flatCost.flat.block?.block_name || ''}) → Amount exceeds the remaining balance for ${payment_towards}`,
+          });
+        }
+
+        if (flatAcc.total_paid + flatAcc.accumulated_total > flatAcc.grand_total) {
+          errors.push({
+            flat_id,
+            message: `Flat: ${flatCost.flat.flat_no} (Block: ${flatCost.flat.block?.block_name || ''}) → Total payments cannot exceed flat cost`,
+          });
+        }
       }
     }
 
@@ -522,23 +618,23 @@ exports.updatePayment = async (req, res) => {
         });
       }
 
-      const totalPayments = await prisma.payments.aggregate({
-        _sum: {
-          amount: true,
-        },
-        where: {
-          flat_id: flat_id,
-        },
-      });
+      const { remaining, total_paid, grand_total, found } = await getPaymentCategoryRemaining(flat_id, customer_id, payment_towards, payment_uid);
 
-      const existingPayments = totalPayments._sum.amount || 0;
-      const newTotal = existingPayments + Number(amount);
+      if (found) {
+        if (Number(amount) > remaining) {
+          return res.status(200).json({
+            status: "error",
+            message: `Payment amount (₹${amount}) exceeds the remaining balance (₹${remaining}) for ${payment_towards}`,
+          });
+        }
 
-      if (newTotal > flatCost?.grand_total) {
-        return res.status(200).json({
-          status: "error",
-          message: `Total payments cannot exceed flat cost`,
-        });
+        const newTotal = total_paid + Number(amount);
+        if (newTotal > grand_total) {
+          return res.status(200).json({
+            status: "error",
+            message: `Total payments cannot exceed flat cost`,
+          });
+        }
       }
 
       // Handle receipt update
@@ -1418,6 +1514,8 @@ exports.uploadParsedPayments = async (req, res) => {
 
       await prisma.parsedpayments.deleteMany();
 
+      const localAccumulator = {};
+
       for (let i = 0; i < data.length; i++) {
         const row = data[i];
         const rowNum = i + 2; // Accounting for header row usually at 1
@@ -1519,23 +1617,40 @@ exports.uploadParsedPayments = async (req, res) => {
               skipReason.push("No Active Customer found for this assigned Flat/Project");
               isValid = false;
             }
+          }
+        }
 
-            // else if (paymentData) {
-            //   // Booking Date validation - Use application_date if available, else created_at
-            //   const rawBookingDate = dbCustomerFlat.application_date || dbCustomerFlat.created_at;
+        if (isValid && dbFlat) {
+          const flatId = dbFlat.id;
+          const customerId = dbCustomerFlat?.customer?.id;
 
-            //   const bookingDate = dayjs(rawBookingDate).startOf('day').toDate();
-            //   const normalizedPaymentDate = dayjs(paymentData).startOf('day').toDate();
-            //   const currentDate = dayjs().endOf('day').toDate();
+          if (!localAccumulator[flatId]) {
+            localAccumulator[flatId] = { categories: {}, total_paid: 0, grand_total: 0, found: false, accumulated_total: 0 };
+          }
+          const flatAcc = localAccumulator[flatId];
 
-            //   if (normalizedPaymentDate < bookingDate) {
-            //     skipReason.push(`Payment Date (${dayjs(normalizedPaymentDate).format('DD-MM-YYYY')}) cannot be before Booking Date (${dayjs(bookingDate).format('DD-MM-YYYY')})`);
-            //     isValid = false;
-            //   } else if (normalizedPaymentDate > currentDate) {
-            //     skipReason.push(`Payment Date (${dayjs(normalizedPaymentDate).format('DD-MM-YYYY')}) cannot be in the future`);
-            //     isValid = false;
-            //   }
-            // }
+          if (!flatAcc.categories[paymentTowards]) {
+            const { remaining, total_paid, grand_total, found } = await getPaymentCategoryRemaining(flatId, customerId, paymentTowards);
+            flatAcc.categories[paymentTowards] = { remaining, accumulated_category: 0 };
+            flatAcc.total_paid = total_paid;
+            flatAcc.grand_total = grand_total;
+            flatAcc.found = found;
+          }
+
+          if (flatAcc.found && !isNaN(parsedAmount)) {
+            const catAcc = flatAcc.categories[paymentTowards];
+            if (catAcc.accumulated_category + parsedAmount > catAcc.remaining) {
+              skipReason.push(`Amount exceeds the remaining balance for ${paymentTowards}`);
+              isValid = false;
+            }
+            if (flatAcc.total_paid + flatAcc.accumulated_total + parsedAmount > flatAcc.grand_total) {
+              skipReason.push(`Total payments cannot exceed flat cost`);
+              isValid = false;
+            }
+            if (isValid) {
+              catAcc.accumulated_category += parsedAmount;
+              flatAcc.accumulated_total += parsedAmount;
+            }
           }
         }
 
