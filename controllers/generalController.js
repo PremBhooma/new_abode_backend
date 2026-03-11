@@ -787,6 +787,7 @@ exports.searchSoldFlatsWithAdvance = async (req, res) => {
         let whereClause = {
             status: "Sold",
             advance_payment: true,
+            flat_reward: true,
             ...(allocatedProjectIds ? { project_id: { in: allocatedProjectIds } } : {}),
         };
 
@@ -815,12 +816,12 @@ exports.searchSoldFlatsWithAdvance = async (req, res) => {
             select: {
                 id: true,
                 flat_no: true,
-                id: true,
                 flat_reward: true,
                 project: {
                     select: {
                         id: true,
                         project_name: true,
+                        project_rewards: true,
                     },
                 },
                 Customerflat: {
@@ -843,6 +844,7 @@ exports.searchSoldFlatsWithAdvance = async (req, res) => {
                 },
             },
         });
+
 
         // Filter by payment threshold and format data
         const data = flats
@@ -871,9 +873,10 @@ exports.searchSoldFlatsWithAdvance = async (req, res) => {
             })
             .filter(Boolean);
 
+
         return res.status(200).json({
             status: "success",
-            data: serializedata,
+            data: data,
         });
 
     } catch (error) {
