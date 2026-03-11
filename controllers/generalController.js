@@ -9,7 +9,7 @@ const fs = require('fs');
 const os = require('os');
 const logger = require('../helper/logger');
 const getAllocatedProjectIds = require("../utils/getAllocatedProjectIds");
-
+const ExcelJS = require("exceljs");
 
 const serializeBigInt = (obj) => {
     return JSON.parse(
@@ -1236,6 +1236,96 @@ exports.updateRewardReceivedStatus = async (req, res) => {
 
     } catch (error) {
         logger.error(`Update Reward Received Status Error: ${error.message}, File: generalController-updateRewardReceivedStatus`);
+        return res.status(500).json({ status: "error", message: "Internal server error" });
+    }
+};
+
+exports.getRewardRecordsExcel = async (req, res) => {
+    try {
+        const { searchQuery = "", sortby = "created_at", sortbyType = "desc" } = req.query;
+
+        const allocatedProjectIds = await getAllocatedProjectIds(req.user.id);
+        const projectFilter = allocatedProjectIds ? { project_id: { in: allocatedProjectIds } } : {};
+
+        const where = {
+            ...projectFilter,
+            rewards_step: 5,
+            OR: [
+                { coupon_name: { contains: searchQuery } },
+                { coupon_gift_id: { contains: searchQuery } },
+                { customer: { first_name: { contains: searchQuery } } },
+                { customer: { last_name: { contains: searchQuery } } },
+                { customer: { phone_number: { contains: searchQuery } } },
+                { employee: { name: { contains: searchQuery } } },
+                { employee: { phone_number: { contains: searchQuery } } },
+            ]
+        };
+
+        const records = await prisma.rewards.findMany({
+            where,
+            orderBy: { [sortby]: sortbyType },
+            include: {
+                employee: true,
+                customer: true,
+                project: true,
+                flat: {
+                    include: {
+                        block: true
+                    }
+                }
+            }
+        });
+
+        const workbook = new ExcelJS.Workbook();
+        const worksheet = workbook.addWorksheet("Reward Records");
+
+        worksheet.columns = [
+            { header: "S.No", key: "s_no", width: 10 },
+            { header: "Date", key: "date", width: 15 },
+            { header: "Project Name", key: "project_name", width: 25 },
+            { header: "Block No.", key: "block_name", width: 15 },
+            { header: "Flat No.", key: 'flat_no', width: 15 },
+            { header: "Floor No.", key: 'floor_no', width: 10 },
+            { header: "Customer Name", key: "customer_name", width: 25 },
+            { header: "Customer Phone", key: "customer_phone", width: 20 },
+            { header: "Employee Name", key: "employee_name", width: 25 },
+            { header: "Employee Phone", key: "employee_phone", width: 20 },
+            { header: "Reward Item", key: "reward_item", width: 25 },
+            { header: "Reward ID", key: "reward_id", width: 20 },
+            { header: "Received Reward", key: "received_reward", width: 15 },
+        ];
+
+        records.forEach((record, index) => {
+            worksheet.addRow({
+                s_no: index + 1,
+                date: record?.created_at ? new Date(record.created_at).toLocaleDateString("en-IN") : "N/A",
+                project_name: record?.project?.project_name || "N/A",
+                block_name: record?.flat?.block?.block_name || "N/A",
+                flat_no: record?.flat?.flat_no || "N/A",
+                floor_no: record?.flat?.floor_no || "N/A",
+                customer_name: `${record?.customer?.first_name || ""} ${record?.customer?.last_name || ""}`.trim() || "N/A",
+                customer_phone: record?.customer?.phone_number ? `+${record?.customer?.phone_code || ""} ${record?.customer?.phone_number}` : "N/A",
+                employee_name: record?.employee?.name || "N/A",
+                employee_phone: record?.employee?.phone_number ? `+${record?.employee?.phone_code || ""} ${record?.employee?.phone_number}` : "N/A",
+                reward_item: record?.coupon_name || "N/A",
+                reward_id: record?.coupon_gift_id || "N/A",
+                received_reward: record?.received_reward ? "Yes" : "No",
+            });
+        });
+
+        res.setHeader(
+            "Content-Type",
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        );
+        res.setHeader(
+            "Content-Disposition",
+            "attachment; filename=RewardRecords.xlsx"
+        );
+
+        await workbook.xlsx.write(res);
+        res.end();
+    } catch (error) {
+        logger.error(`Get Reward Records Excel Error: ${error.message}, File: generalController-getRewardRecordsExcel`);
         return res.status(500).json({ status: "error", message: "Internal server error" });
     }
 };

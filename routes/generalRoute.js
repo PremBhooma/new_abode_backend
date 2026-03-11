@@ -33,6 +33,7 @@ router.post('/verify-redemption-otp', authenticateToken, generalController.verif
 router.get('/get-reward-status', authenticateToken, generalController.getRewardStatus);
 router.post('/update-reward-step', authenticateToken, generalController.updateRewardStep);
 router.get('/get-reward-records', authenticateToken, generalController.getRewardRecords);
+router.get('/get-reward-records-excel', authenticateToken, generalController.getRewardRecordsExcel);
 router.post('/update-reward-received-status', authenticateToken, generalController.updateRewardReceivedStatus);
 
 module.exports = router;
