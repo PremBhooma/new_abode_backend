@@ -4,6 +4,7 @@ const multiparty = require("multiparty");
 const fs = require("fs");
 const path = require("path");
 const xlsx = require("xlsx");
+const { v4: uuidv4 } = require("uuid");
 
 const ExcelJS = require("exceljs");
 const getAllocatedProjectIds = require("../utils/getAllocatedProjectIds");
@@ -119,6 +120,7 @@ exports.AddLead = async (req, res) => {
 
     const lead = await prisma.leads.create({
       data: {
+        id: uuidv4(),
         // ... (existing fields)
         prefixes,
         full_name,
@@ -184,6 +186,7 @@ exports.AddLead = async (req, res) => {
 
     await prisma.leadsprofession.create({
       data: {
+        id: uuidv4(),
         lead_id: lead?.id,
         current_designation: current_designation || null,
         name_of_current_organization: name_of_current_organization || null,
@@ -198,6 +201,7 @@ exports.AddLead = async (req, res) => {
 
     await prisma.leadsactivities.create({
       data: {
+        id: uuidv4(),
         lead_id: lead?.id,
         employee_id: employeeId,
         ca_message: "Lead created",
@@ -207,6 +211,7 @@ exports.AddLead = async (req, res) => {
     if (correspondence_state && correspondence_country) {
       await prisma.leadsaddress.create({
         data: {
+          id: uuidv4(),
           lead_id: lead?.id,
           address_type: "Correspondence",
           country: correspondence_country,
@@ -222,6 +227,7 @@ exports.AddLead = async (req, res) => {
     if (permanent_state && permanent_country) {
       await prisma.leadsaddress.create({
         data: {
+          id: uuidv4(),
           lead_id: lead?.id,
           address_type: "Permanent",
           country: permanent_country,
@@ -1420,8 +1426,8 @@ exports.GetSingleLead = async (req, res) => {
 };
 
 exports.GetLeadActivities = async (req, res) => {
-  const { lead_id, leadId, lead_uuid, employeeId, employee_uuid, limit, offset = 0 } = req.query;
-  const target_lead_id = lead_id || leadId || lead_uuid;
+  const { lead_id, leadId, lead_uuid, currentLeadId, employeeId, employee_uuid, limit, offset = 0 } = req.query;
+  const target_lead_id = lead_id || leadId || lead_uuid || currentLeadId;
   const target_employee_id = employeeId || employee_uuid;
 
   try {
@@ -1643,6 +1649,7 @@ exports.AddleadNote = async (req, res) => {
 
     await prisma.leadsnotes.create({
       data: {
+        id: uuidv4(),
         note_message: note,
         lead_id: lead.id,
         employee_id: user_id,
@@ -1651,6 +1658,7 @@ exports.AddleadNote = async (req, res) => {
 
     await prisma.leadsactivities.create({
       data: {
+        id: uuidv4(),
         lead_id: lead.id,
         employee_id: target_employee_id,
         ca_message: `Notes Added`,
