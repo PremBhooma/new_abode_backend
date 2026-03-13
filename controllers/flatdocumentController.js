@@ -3,6 +3,19 @@ const multiparty = require("multiparty");
 const fs = require("fs");
 const path = require("path");
 const logger = require("../helper/logger");
+const { v4: uuidv4 } = require("uuid");
+
+const normalizeFolderId = (folderId) => {
+  if (folderId === null || folderId === undefined) return null;
+  if (typeof folderId === "string") {
+    const trimmed = folderId.trim();
+    if (trimmed === "" || trimmed === "null" || trimmed === "undefined") {
+      return null;
+    }
+    return trimmed;
+  }
+  return folderId;
+};
 
 function getFileIconType(fileType) {
   switch (fileType) {
@@ -41,6 +54,7 @@ const deleteFolderRecursively = async (prismaInstance, folderId) => {
 
 exports.createFolder = async (req, res) => {
   const { folderName, flat_uid, user_id, file_type, currentFolderUuid, currentFolderId, employee_id } = req.body;
+  const sanitizedFolderId = normalizeFolderId(currentFolderId);
 
   // Validate required fields
   if (!folderName || !flat_uid || !employee_id) {
@@ -94,25 +108,25 @@ exports.createFolder = async (req, res) => {
           message: `Parent folder with UUID "${currentFolderUuid}" not found`,
         });
       }
-    } else if (currentFolderId) {
+    } else if (sanitizedFolderId) {
       parentFolder = await prisma.flatfilemanager.findUnique({
-        where: { id: currentFolderId }, // Fallback to ID if UUID is not present
+        where: { id: sanitizedFolderId }, // Fallback to ID if UUID is not present
       });
 
       if (!parentFolder) {
         return res.status(200).json({
           status: "error",
-          message: `Parent folder with ID "${currentFolderId}" not found`,
+          message: `Parent folder with ID "${sanitizedFolderId}" not found`,
         });
       }
     }
 
     if (parentFolder) {
-      parentFolderPath = path.join(uploadsDir, parentFolder.file_path);
-      filePath = path.join(parentFolder.file_path, folderName);
+      parentFolderPath = path.join(uploadsDir, parentFolder.file_path).replace(/\\/g, "/");
+      filePath = path.join(parentFolder.file_path, folderName).replace(/\\/g, "/");
     }
 
-    const newFolderPath = path.join(parentFolderPath, folderName);
+    const newFolderPath = path.join(parentFolderPath, folderName).replace(/\\/g, "/");
 
     if (fs.existsSync(newFolderPath)) {
       return res.status(200).json({
@@ -125,7 +139,7 @@ exports.createFolder = async (req, res) => {
     fs.mkdirSync(newFolderPath);
 
     // Generate a unique ID for the new folder
-    const folderUid = "ABDFM" + Math.floor(100000 + Math.random() * 900000);
+    const folderUid = uuidv4();
     const fileIconType = getFileIconType(file_type);
 
     // Insert the folder into the database
@@ -137,7 +151,7 @@ exports.createFolder = async (req, res) => {
         file_type: "folder",
         file_path: filePath,
         file_url: `${process.env.API_URL}/uploads/flats/${flat_uid}/${filePath}`,
-        parent_id: currentFolderId || null,
+        parent_id: sanitizedFolderId,
         flat_id: flatdetails?.id,
         added_by: user_id,
         created_at: new Date(),
@@ -176,6 +190,7 @@ exports.createFolder = async (req, res) => {
 exports.getDocuments = async (req, res) => {
   const { currentFolderId, flat_uid, flat_id, flatId } = req.query;
   const target_flat_id = flat_uid || flat_id || flatId;
+  const sanitizedFolderId = normalizeFolderId(currentFolderId);
   try {
     const flatdetails = await prisma.flat.findFirst({
       where: {
@@ -192,7 +207,7 @@ exports.getDocuments = async (req, res) => {
 
     const documents = await prisma.flatfilemanager.findMany({
       where: {
-        parent_id: currentFolderId ? currentFolderId : null,
+        parent_id: sanitizedFolderId,
         flat_id: flatdetails.id,
       },
       include: {
@@ -203,24 +218,24 @@ exports.getDocuments = async (req, res) => {
 
     const documentsdata = documents.map((doc) => ({
       id: doc.id,
-      id: doc.id,
       name: doc.name,
+      parent_id: doc.parent_id,
       file_type: doc.file_type,
       file_icon_type: doc.file_icon_type,
       file_path: doc.file_path,
       file_url: doc.file_url,
-      uploadedBy: doc.employeedetails.name,
+      uploadedBy: doc.employeedetails?.name || "System",
       created_at: doc.created_at,
       updated_at: doc.updated_at,
     }));
 
     let superparent = null;
     let current_file_path = null;
-    if (currentFolderId !== null && currentFolderId !== undefined) {
+    if (sanitizedFolderId !== null && sanitizedFolderId !== undefined) {
       // Fetch the current folder's parent ID only if currentFolderId is defined and valid
       const currentFolderdocuments = await prisma.flatfilemanager.findFirst({
         where: {
-          id: currentFolderId, // Convert to BigInt safely
+          id: sanitizedFolderId,
         },
       });
       superparent = currentFolderdocuments?.parent_id || null;
@@ -231,7 +246,7 @@ exports.getDocuments = async (req, res) => {
       status: "success",
       documentsdata: documentsdata || [],
       parentfolder_id: superparent?.toString(),
-      file_path: current_file_path,
+      file_path: current_file_path || "filemanager",
     });
   } catch (error) {
     logger.error(`Get Documents Error: ${error.message}, File: flatDocumentController-getDocuments`);
@@ -349,12 +364,14 @@ exports.uploadFile = async (req, res) => {
 
     // Retrieve the uploaded files and additional fields
     const uploadedFiles = files.uploadfile; // The field name from the FormData
-    const folderPath = fields.folderPath[0];
+    const folderPath = (fields.folderPath?.[0] || "filemanager").trim();
     const flat_uid = fields.flat_uid[0];
-    const currentFolderId = fields.currentFolderId[0];
-    const fileType = fields.file_type[0];
-    const user_id = fields.user_id[0];
+    const currentFolderId = fields.currentFolderId?.[0];
+    const sanitizedFolderId = normalizeFolderId(currentFolderId);
+    const fileType = fields.file_type?.[0];
+    const user_id = fields.user_id?.[0];
     const employee_id = fields.employee_id[0];
+    let resolvedParentId = sanitizedFolderId;
 
     const flatdetails = await prisma.flat.findFirst({
       where: {
@@ -369,14 +386,26 @@ exports.uploadFile = async (req, res) => {
       });
     }
 
-    const maindir = path.join(__dirname, "..", "uploads", `/flats/${flat_uid}`);
+    if (!resolvedParentId && folderPath && folderPath !== "filemanager") {
+      const parentFolder = await prisma.flatfilemanager.findFirst({
+        where: {
+          flat_id: flatdetails.id,
+          file_path: folderPath,
+          file_type: "folder",
+        },
+        select: { id: true },
+      });
+      resolvedParentId = parentFolder?.id || null;
+    }
+
+    const maindir = path.join(__dirname, "..", "uploads", "flats", flat_uid).replace(/\\/g, "/");
     // Check if maindir exists; if not, create it
     if (!fs.existsSync(maindir)) {
       fs.mkdirSync(maindir, { recursive: true });
     }
 
     // folderPath inside maindir
-    const folderdir = path.join(maindir, folderPath);
+    const folderdir = path.join(maindir, folderPath).replace(/\\/g, "/");
     // Check if folderdir exists; if not, create it
     if (!fs.existsSync(folderdir)) {
       fs.mkdirSync(folderdir, { recursive: true });
@@ -393,7 +422,7 @@ exports.uploadFile = async (req, res) => {
     const timestamp = Date.now();
     // Create a new filename by appending the timestamp
     const newFilename = `${path.basename(originalFilename, ext)}_${timestamp}${ext}`;
-    const targetPath = path.join(folderdir, newFilename);
+    const targetPath = path.join(folderdir, newFilename).replace(/\\/g, "/");
 
     // Copy the file to the target directory
     fs.copyFileSync(tempPath, targetPath);
@@ -402,7 +431,7 @@ exports.uploadFile = async (req, res) => {
 
     // Insert the file into the database after uploading it to the server filesystem successfully
     try {
-      const fileUid = "ABODEF" + Math.floor(100000 + Math.random() * 900000);
+      const fileUid = uuidv4();
       const fileIconType = getFileIconType(fileType);
 
       // Insert the folder into the database
@@ -410,11 +439,11 @@ exports.uploadFile = async (req, res) => {
         data: {
           name: originalFilename,
           id: fileUid,
+          file_icon_type: fileIconType,
           file_type: new_file_type,
-          file_url: `${process.env.API_URL}/uploads/flats/${flat_uid}/${folderPath}/${newFilename}`,
-          // file_icon_type: fileIconType,
-          file_path: `${folderPath}/${newFilename}`,
-          parent_id: currentFolderId ? currentFolderId : null,
+          file_url: `${process.env.API_URL}/uploads/flats/${flat_uid}/${folderPath}/${newFilename}`.replace(/\\/g, "/"),
+          file_path: `${folderPath}/${newFilename}`.replace(/\\/g, "/"),
+          parent_id: resolvedParentId,
           flat_id: flatdetails?.id,
           added_by: user_id,
           created_at: new Date(),
@@ -627,7 +656,7 @@ exports.flatsSyncFileSystemWithDB = async (req, res) => {
           const fileType = isDirectory ? "folder" : path.extname(file.name).substring(1) || "file";
 
           // Generate UUID
-          const fileUid = isDirectory ? "ABDFM" + Math.floor(100000 + Math.random() * 900000) : "ABODEF" + Math.floor(100000 + Math.random() * 900000);
+          const fileUid = uuidv4();
 
           // Create new DB entry
           const newEntry = await prisma.flatfilemanager.create({
@@ -637,8 +666,8 @@ exports.flatsSyncFileSystemWithDB = async (req, res) => {
               file_icon_type: getFileIconType(fileType),
               file_type: isDirectory ? "folder" : fileType,
               file_size: isDirectory ? null : (await fs.promises.stat(fullPath)).size,
-              file_path: relativePath,
-              file_url: `${process.env.API_URL}/uploads/flats/${flat_uid}/${relativePath}`,
+              file_path: relativePath.replace(/\\/g, "/"),
+              file_url: `${process.env.API_URL}/uploads/flats/${flat_uid}/${relativePath}`.replace(/\\/g, "/"),
               parent_id: parentId,
               flat_id: flatdetails.id,
               added_by: employee_id,
