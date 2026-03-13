@@ -3,6 +3,19 @@ const multiparty = require("multiparty");
 const fs = require("fs");
 const path = require("path");
 const logger = require("../helper/logger");
+const { v4: uuidv4 } = require("uuid");
+
+const normalizeFolderId = (folderId) => {
+  if (folderId === null || folderId === undefined) return null;
+  if (typeof folderId === "string") {
+    const trimmed = folderId.trim();
+    if (trimmed === "" || trimmed === "null" || trimmed === "undefined") {
+      return null;
+    }
+    return trimmed;
+  }
+  return folderId;
+};
 
 function getFileIconType(fileType) {
   switch (fileType) {
@@ -23,7 +36,7 @@ function getFileIconType(fileType) {
 
 const deleteFolderRecursively = async (prismaInstance, folderId) => {
   // Find all direct children of the folder
-  const childFolders = await prismaInstance.leadfilemanager.findMany({
+  const childFolders = await prismaInstance.leadsfilemanager.findMany({
     where: { parent_id: folderId },
   });
 
@@ -34,16 +47,18 @@ const deleteFolderRecursively = async (prismaInstance, folderId) => {
   }
 
   // After all child folders/files are deleted, delete the current folder
-  await prismaInstance.leadfilemanager.delete({
+  await prismaInstance.leadsfilemanager.delete({
     where: { id: folderId },
   });
 };
 
 exports.createFolder = async (req, res) => {
-  const { folderName, lead_uuid, user_id, file_type, currentFolderUuid, currentFolderId, employee_id } = req.body;
+  const { folderName, currentFolderId, currentFolderUuid, lead_uuid, leadId, employee_id, user_id, file_type } = req.body;
+  const final_lead_uuid = lead_uuid || leadId;
+  const sanitizedFolderId = normalizeFolderId(currentFolderId);
 
   // Validate required fields
-  if (!folderName || !lead_uuid || !employee_id) {
+  if (!folderName || !final_lead_uuid || !employee_id) {
     return res.status(200).json({
       status: "error",
       message: "folderName, lead_uuid, and employee_id are required",
@@ -53,7 +68,7 @@ exports.createFolder = async (req, res) => {
   try {
     const leaddetails = await prisma.leads.findFirst({
       where: {
-        id: lead_uuid,
+        id: final_lead_uuid,
       },
     });
 
@@ -64,7 +79,7 @@ exports.createFolder = async (req, res) => {
       });
     }
 
-    const uploadsDir = path.join(__dirname, "..", "uploads", `/leads/${lead_uuid}`);
+    const uploadsDir = path.join(__dirname, "..", "uploads", "leads", final_lead_uuid).replace(/\\/g, '/');
     const filemanagerDir = path.join(uploadsDir, "filemanager");
 
     if (!fs.existsSync(uploadsDir)) {
@@ -75,7 +90,7 @@ exports.createFolder = async (req, res) => {
     }
 
     let parentFolderPath = filemanagerDir;
-    let filePath = path.join("filemanager", folderName);
+    let filePath = path.join("filemanager", folderName).replace(/\\/g, '/');
 
     // Check if either currentFolderUuid or currentFolderId is provided
     let parentFolder = null;
@@ -105,11 +120,11 @@ exports.createFolder = async (req, res) => {
     }
 
     if (parentFolder) {
-      parentFolderPath = path.join(uploadsDir, parentFolder.file_path);
-      filePath = path.join(parentFolder.file_path, folderName);
+      parentFolderPath = path.join(uploadsDir, parentFolder.file_path).replace(/\\/g, '/');
+      filePath = path.join(parentFolder.file_path, folderName).replace(/\\/g, '/');
     }
 
-    const newFolderPath = path.join(parentFolderPath, folderName);
+    const newFolderPath = path.join(parentFolderPath, folderName).replace(/\\/g, '/');
 
     if (fs.existsSync(newFolderPath)) {
       return res.status(200).json({
@@ -122,7 +137,7 @@ exports.createFolder = async (req, res) => {
     fs.mkdirSync(newFolderPath);
 
     // Generate a unique ID for the new folder
-    const folderUid = "ABDFM" + Math.floor(100000 + Math.random() * 900000);
+    const folderUid = uuidv4();
     const fileIconType = getFileIconType(file_type);
 
     // Insert the folder into the database
@@ -133,8 +148,8 @@ exports.createFolder = async (req, res) => {
         file_icon_type: fileIconType,
         file_type: "folder",
         file_path: filePath,
-        file_url: `${process.env.API_URL}/uploads/leads/${lead_uuid}/${filePath}`,
-        parent_id: currentFolderId || null,
+        file_url: `${process.env.API_URL}/uploads/leads/${final_lead_uuid}/${filePath}`,
+        parent_id: sanitizedFolderId,
         lead_id: leaddetails?.id,
         added_by: user_id,
         created_at: new Date(),
@@ -167,24 +182,26 @@ exports.createFolder = async (req, res) => {
 };
 
 exports.getDocuments = async (req, res) => {
-  const { currentFolderId, lead_uuid } = req.query;
+  const { currentFolderId, lead_uuid, leadId } = req.query;
+  const final_lead_uuid = lead_uuid || leadId;
+  const sanitizedFolderId = normalizeFolderId(currentFolderId);
   try {
     const leaddetails = await prisma.leads.findFirst({
       where: {
-        id: lead_uuid,
+        id: final_lead_uuid,
       },
     });
 
     if (!leaddetails) {
       return res.status(200).json({
         status: "error",
-        message: "Flat not found",
+        message: "Lead not found",
       });
     }
 
     const documents = await prisma.leadsfilemanager.findMany({
       where: {
-        parent_id: currentFolderId ? currentFolderId : null,
+        parent_id: sanitizedFolderId,
         lead_id: leaddetails.id,
       },
       include: {
@@ -195,24 +212,24 @@ exports.getDocuments = async (req, res) => {
 
     const documentsdata = documents.map((doc) => ({
       id: doc.id,
-      id: doc.id,
       name: doc.name,
+      parent_id: doc.parent_id,
       file_type: doc.file_type,
       file_icon_type: doc.file_icon_type,
       file_path: doc.file_path,
       file_url: doc.file_url,
-      uploadedBy: doc.employee_details.name,
+      uploadedBy: doc.employee_details?.name || "System",
       created_at: doc.created_at,
       updated_at: doc.updated_at,
     }));
 
     let superparent = null;
     let current_file_path = null;
-    if (currentFolderId !== null && currentFolderId !== undefined) {
+    if (sanitizedFolderId !== null && sanitizedFolderId !== undefined) {
       // Fetch the current folder's parent ID only if currentFolderId is defined and valid
       const currentFolderdocuments = await prisma.leadsfilemanager.findFirst({
         where: {
-          id: currentFolderId, // Convert to BigInt safely
+          id: sanitizedFolderId, // Convert to BigInt safely
         },
       });
       superparent = currentFolderdocuments?.parent_id || null;
@@ -235,7 +252,8 @@ exports.getDocuments = async (req, res) => {
 };
 
 exports.deleteFolder = async (req, res) => {
-  const { folder_id, lead_uuid } = req.body;
+  const { folder_id, lead_uuid, leadId } = req.body;
+  const final_lead_uuid = lead_uuid || leadId;
 
   try {
     // Find the folder in the database
@@ -251,7 +269,7 @@ exports.deleteFolder = async (req, res) => {
     }
 
     // Construct the full path of the folder
-    const maindir = path.join(__dirname, "..", "uploads", `/leads/${lead_uuid}`);
+    const maindir = path.join(__dirname, "..", "uploads", `/leads/${final_lead_uuid}`);
     const folderPath = path.join(maindir, folder.file_path);
 
     // Check if the folder exists and delete it from the filesystem
@@ -310,12 +328,20 @@ exports.uploadFile = async (req, res) => {
 
     // Retrieve the uploaded files and additional fields
     const uploadedFiles = files.uploadfile; // The field name from the FormData
-    const folderPath = fields.folderPath[0];
-    const lead_uuid = fields.id[0];
-    const currentFolderId = fields.currentFolderId[0];
-    const fileType = fields.file_type[0];
-    const user_id = fields.user_id[0];
-    const employee_id = fields.employee_id[0];
+    const folderPath = fields.folderPath?.[0];
+    const lead_uuid = fields.id?.[0] || fields.lead_uuid?.[0] || fields.leadId?.[0];
+    const currentFolderId = fields.currentFolderId?.[0];
+    const sanitizedFolderId = normalizeFolderId(currentFolderId);
+    const fileType = fields.file_type?.[0];
+    const user_id = fields.user_id?.[0];
+    const employee_id = fields.employee_id?.[0];
+
+    if (!uploadedFiles || !lead_uuid) {
+      return res.status(200).json({
+        status: "error",
+        message: "File or Lead ID missing",
+      });
+    }
 
     const leaddetails = await prisma.leads.findFirst({
       where: {
@@ -330,14 +356,14 @@ exports.uploadFile = async (req, res) => {
       });
     }
 
-    const maindir = path.join(__dirname, "..", "uploads", `/leads/${lead_uuid}`);
+    const maindir = path.join(__dirname, "..", "uploads", "leads", lead_uuid).replace(/\\/g, '/');
     // Check if maindir exists; if not, create it
     if (!fs.existsSync(maindir)) {
       fs.mkdirSync(maindir, { recursive: true });
     }
 
     // folderPath inside maindir
-    const folderdir = path.join(maindir, folderPath);
+    const folderdir = path.join(maindir, folderPath).replace(/\\/g, '/');
     // Check if folderdir exists; if not, create it
     if (!fs.existsSync(folderdir)) {
       fs.mkdirSync(folderdir, { recursive: true });
@@ -353,7 +379,7 @@ exports.uploadFile = async (req, res) => {
     const timestamp = Date.now();
     // Create a new filename by appending the timestamp
     const newFilename = `${path.basename(originalFilename, ext)}_${timestamp}${ext}`;
-    const targetPath = path.join(folderdir, newFilename);
+    const targetPath = path.join(folderdir, newFilename).replace(/\\/g, '/');
 
     // Copy the file to the target directory
     fs.copyFileSync(tempPath, targetPath);
@@ -362,7 +388,7 @@ exports.uploadFile = async (req, res) => {
 
     // Insert the file into the database after uploading it to the server filesystem successfully
     try {
-      const fileUid = "ABODEF" + Math.floor(100000 + Math.random() * 900000);
+      const fileUid = uuidv4();
       const fileIconType = getFileIconType(fileType);
 
       // Insert the folder into the database
@@ -372,10 +398,10 @@ exports.uploadFile = async (req, res) => {
           id: fileUid,
           file_type: new_file_type,
           file_url: `${process.env.API_URL}/uploads/leads/${lead_uuid}/${folderPath}/${newFilename}`,
-          // file_icon_type: fileIconType,
-          file_path: `${folderPath}/${newFilename}`,
-          parent_id: currentFolderId ? currentFolderId : null,
-          lead_id: leaddetails?.id,
+        // file_icon_type: fileIconType,
+        file_path: `${folderPath}/${newFilename}`.replace(/\\/g, '/'),
+        parent_id: sanitizedFolderId,
+        lead_id: leaddetails?.id,
           added_by: user_id,
           created_at: new Date(),
           updated_at: new Date(),
@@ -407,10 +433,11 @@ exports.uploadFile = async (req, res) => {
 };
 
 exports.deleteFile = async (req, res) => {
-  const { file_id, lead_uuid, employee_id } = req.body;
+  const { file_id, lead_uuid, leadId, employee_id } = req.body;
+  const final_lead_uuid = lead_uuid || leadId;
 
   // Validate required fields
-  if (!file_id || !lead_uuid || !employee_id) {
+  if (!file_id || !final_lead_uuid || !employee_id) {
     return res.status(200).json({
       status: "error",
       message: "file_id, lead_uuid, and employee_id are required",
@@ -451,8 +478,8 @@ exports.deleteFile = async (req, res) => {
     const leadId = file.lead_id;
 
     // Construct the full path of the file
-    const maindir = path.join(__dirname, "..", "uploads", `/leads/${lead_uuid}`);
-    const filePath = path.join(maindir, file.file_path);
+    const maindir = path.join(__dirname, "..", "uploads", "leads", final_lead_uuid).replace(/\\/g, '/');
+    const filePath = path.join(maindir, file.file_path).replace(/\\/g, '/');
 
     // Check if the file exists and delete it
     if (fs.existsSync(filePath)) {
@@ -494,10 +521,11 @@ exports.deleteFile = async (req, res) => {
 };
 
 exports.syncFileSystemWithDB = async (req, res) => {
-  const { lead_uuid, employee_id } = req.body;
+  const { lead_uuid, leadId, employee_id } = req.body;
+  const final_lead_uuid = lead_uuid || leadId;
 
   // Validate required fields
-  if (!lead_uuid || !employee_id) {
+  if (!final_lead_uuid || !employee_id) {
     return res.status(200).json({
       status: "error",
       message: "lead_uuid and employee_id are required",
@@ -506,7 +534,7 @@ exports.syncFileSystemWithDB = async (req, res) => {
   try {
     // Get lead details
     const lead = await prisma.leads.findFirst({
-      where: { id: lead_uuid },
+      where: { id: final_lead_uuid },
     });
 
     if (!lead) {
@@ -536,7 +564,7 @@ exports.syncFileSystemWithDB = async (req, res) => {
     });
 
     // Path to lead's file manager directory
-    const leadDir = path.join(__dirname, "..", "uploads", "leads", lead_uuid, "filemanager");
+    const leadDir = path.join(__dirname, "..", "uploads", "leads", final_lead_uuid, "filemanager").replace(/\\/g, '/');
 
     // Recursive function to scan directory and compare with DB
     const scanDirectory = async (dirPath, parentPath = "filemanager", parentId = null) => {
@@ -554,8 +582,8 @@ exports.syncFileSystemWithDB = async (req, res) => {
       const results = [];
 
       for (const file of files) {
-        const relativePath = path.join(parentPath, file.name);
-        const fullPath = path.join(dirPath, file.name);
+        const relativePath = path.join(parentPath, file.name).replace(/\\/g, '/');
+        const fullPath = path.join(dirPath, file.name).replace(/\\/g, '/');
 
         // Check if this path exists in DB
         const dbEntry = dbPathMap.get(relativePath);
@@ -566,7 +594,7 @@ exports.syncFileSystemWithDB = async (req, res) => {
           const fileType = isDirectory ? "folder" : path.extname(file.name).substring(1) || "file";
 
           // Generate UUID
-          const fileUid = isDirectory ? "ABDFM" + Math.floor(100000 + Math.random() * 900000) : "ABODEF" + Math.floor(100000 + Math.random() * 900000);
+          const fileUid = uuidv4();
 
           // Create new DB entry
           const newEntry = await prisma.leadsfilemanager.create({
@@ -577,7 +605,7 @@ exports.syncFileSystemWithDB = async (req, res) => {
               file_type: isDirectory ? "folder" : fileType,
               file_size: isDirectory ? null : (await fs.promises.stat(fullPath)).size,
               file_path: relativePath,
-              file_url: `${process.env.API_URL}/uploads/leads/${lead_uuid}/${relativePath}`,
+              file_url: `${process.env.API_URL}/uploads/leads/${final_lead_uuid}/${relativePath}`,
               parent_id: parentId,
               lead_id: lead.id,
               added_by: employee_id,
