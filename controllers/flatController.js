@@ -1023,8 +1023,16 @@ module.exports.AddFlatnote = async (req, res) => {
       },
     });
 
+    if (!flatnote) {
+      return res.status(404).json({
+        status: "error",
+        message: "Flat not found",
+      });
+    }
+
     await prisma.flatnotes.create({
       data: {
+        id: uuidv4(),
         note_message: note,
         flat_id: flatnote.id,
         user_id: user_id,
