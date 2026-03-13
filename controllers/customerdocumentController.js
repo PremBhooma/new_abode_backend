@@ -3,6 +3,19 @@ const multiparty = require("multiparty");
 const fs = require("fs");
 const path = require("path");
 const logger = require("../helper/logger");
+const { v4: uuidv4 } = require("uuid");
+
+const normalizeFolderId = (folderId) => {
+  if (folderId === null || folderId === undefined) return null;
+  if (typeof folderId === "string") {
+    const trimmed = folderId.trim();
+    if (trimmed === "" || trimmed === "null" || trimmed === "undefined") {
+      return null;
+    }
+    return trimmed;
+  }
+  return folderId;
+};
 
 function getFileIconType(fileType) {
   switch (fileType) {
@@ -41,6 +54,7 @@ const deleteFolderRecursively = async (prismaInstance, folderId) => {
 
 exports.createFolder = async (req, res) => {
   const { folderName, customer_id_ref, user_id, file_type, currentFolderUuid, currentFolderId, employee_id } = req.body;
+  const sanitizedFolderId = normalizeFolderId(currentFolderId);
 
   // Validate required fields
   if (!folderName || !customer_id_ref || !employee_id) {
@@ -64,7 +78,7 @@ exports.createFolder = async (req, res) => {
       });
     }
 
-    const uploadsDir = path.join(__dirname, "..", "uploads", `/customers/${customer_id_ref}`);
+    const uploadsDir = path.join(__dirname, "..", "uploads", "customers", customer_id_ref).replace(/\\/g, "/");
     const filemanagerDir = path.join(uploadsDir, "filemanager");
 
     if (!fs.existsSync(uploadsDir)) {
@@ -75,7 +89,7 @@ exports.createFolder = async (req, res) => {
     }
 
     let parentFolderPath = filemanagerDir;
-    let filePath = path.join("filemanager", folderName);
+    let filePath = path.join("filemanager", folderName).replace(/\\/g, "/");
 
     // Check if either currentFolderUuid or currentFolderId is provided
     let parentFolder = null;
@@ -91,25 +105,25 @@ exports.createFolder = async (req, res) => {
           message: `Parent folder with UUID "${currentFolderUuid}" not found`,
         });
       }
-    } else if (currentFolderId) {
+    } else if (sanitizedFolderId) {
       parentFolder = await prisma.customerfilemanager.findUnique({
-        where: { id: currentFolderId }, // Fallback to ID if UUID is not present
+        where: { id: sanitizedFolderId }, // Fallback to ID if UUID is not present
       });
 
       if (!parentFolder) {
         return res.status(400).json({
           status: "error",
-          message: `Parent folder with ID "${currentFolderId}" not found`,
+          message: `Parent folder with ID "${sanitizedFolderId}" not found`,
         });
       }
     }
 
     if (parentFolder) {
-      parentFolderPath = path.join(uploadsDir, parentFolder.file_path);
-      filePath = path.join(parentFolder.file_path, folderName);
+      parentFolderPath = path.join(uploadsDir, parentFolder.file_path).replace(/\\/g, "/");
+      filePath = path.join(parentFolder.file_path, folderName).replace(/\\/g, "/");
     }
 
-    const newFolderPath = path.join(parentFolderPath, folderName);
+    const newFolderPath = path.join(parentFolderPath, folderName).replace(/\\/g, "/");
 
     if (fs.existsSync(newFolderPath)) {
       return res.status(200).json({
@@ -122,7 +136,7 @@ exports.createFolder = async (req, res) => {
     fs.mkdirSync(newFolderPath);
 
     // Generate a unique ID for the new folder
-    const folderUid = "ABDFM" + Math.floor(100000 + Math.random() * 900000);
+    const folderUid = uuidv4();
     const fileIconType = getFileIconType(file_type);
 
     // Insert the folder into the database
@@ -134,7 +148,7 @@ exports.createFolder = async (req, res) => {
         file_type: "folder",
         file_path: filePath,
         file_url: `${process.env.API_URL}/uploads/customers/${customer_id_ref}/${filePath}`,
-        parent_id: currentFolderId || null,
+        parent_id: sanitizedFolderId,
         customer_id: customerdetails?.id,
         added_by: user_id,
         created_at: new Date(),
@@ -167,11 +181,8 @@ exports.createFolder = async (req, res) => {
 };
 
 exports.getDocuments = async (req, res) => {
-  let { currentFolderId, customer_id_ref } = req.query;
-
-  if (currentFolderId === "null" || currentFolderId === "undefined" || currentFolderId === "") {
-    currentFolderId = null;
-  }
+  const { currentFolderId, customer_id_ref } = req.query;
+  const sanitizedFolderId = normalizeFolderId(currentFolderId);
 
   try {
     const customerdetails = await prisma.customers.findFirst({
@@ -183,13 +194,13 @@ exports.getDocuments = async (req, res) => {
     if (!customerdetails) {
       return res.status(200).json({
         status: "error",
-        message: "Flat not found",
+        message: "Customer not found",
       });
     }
 
     const documents = await prisma.customerfilemanager.findMany({
       where: {
-        parent_id: currentFolderId ? currentFolderId : null,
+        parent_id: sanitizedFolderId,
         customer_id: customerdetails.id,
       },
       include: {
@@ -200,8 +211,8 @@ exports.getDocuments = async (req, res) => {
 
     const documentsdata = documents.map((doc) => ({
       id: doc.id,
-      id: doc.id,
       name: doc.name,
+      parent_id: doc.parent_id,
       file_type: doc.file_type,
       file_icon_type: doc.file_icon_type,
       file_path: doc.file_path,
@@ -213,11 +224,11 @@ exports.getDocuments = async (req, res) => {
 
     let superparent = null;
     let current_file_path = null;
-    if (currentFolderId !== null && currentFolderId !== undefined) {
+    if (sanitizedFolderId !== null && sanitizedFolderId !== undefined) {
       // Fetch the current folder's parent ID only if currentFolderId is defined and valid
       const currentFolderdocuments = await prisma.customerfilemanager.findFirst({
         where: {
-          id: currentFolderId, // Convert to BigInt safely
+          id: sanitizedFolderId,
         },
       });
       superparent = currentFolderdocuments?.parent_id || null;
@@ -228,7 +239,7 @@ exports.getDocuments = async (req, res) => {
       status: "success",
       documentsdata: documentsdata || [],
       parentfolder_id: superparent?.toString(),
-      file_path: current_file_path,
+      file_path: current_file_path || "filemanager",
     });
   } catch (error) {
     logger.error(`Get Documents Error: ${error.message}, File: customerDocumentController-getDocuments `);
@@ -256,8 +267,8 @@ exports.deleteFolder = async (req, res) => {
     }
 
     // Construct the full path of the folder
-    const maindir = path.join(__dirname, "..", "uploads", `/customers/${customeruid}`);
-    const folderPath = path.join(maindir, folder.file_path);
+    const maindir = path.join(__dirname, "..", "uploads", "customers", customeruid).replace(/\\/g, "/");
+    const folderPath = path.join(maindir, folder.file_path).replace(/\\/g, "/");
 
     // Check if the folder exists and delete it from the filesystem
     fs.access(folderPath, fs.constants.F_OK, async (err) => {
@@ -315,17 +326,14 @@ exports.uploadFile = async (req, res) => {
 
     // Retrieve the uploaded files and additional fields
     const uploadedFiles = files.uploadfile; // The field name from the FormData
-    const folderPath = fields.folderPath[0];
+    const folderPath = (fields.folderPath?.[0] || "filemanager").trim();
     const customer_id_ref = fields.customer_id_ref[0];
-
-    let currentFolderId = fields.currentFolderId ? fields.currentFolderId[0] : null;
-    if (currentFolderId === "null" || currentFolderId === "undefined" || currentFolderId === "") {
-      currentFolderId = null;
-    }
-
-    const fileType = fields.file_type[0];
-    const user_id = fields.user_id[0];
+    const currentFolderId = fields.currentFolderId?.[0];
+    const sanitizedFolderId = normalizeFolderId(currentFolderId);
+    const fileType = fields.file_type?.[0];
+    const user_id = fields.user_id?.[0];
     const employee_id = fields.employee_id[0];
+    let resolvedParentId = sanitizedFolderId;
 
     const customerdetails = await prisma.customers.findFirst({
       where: {
@@ -340,14 +348,14 @@ exports.uploadFile = async (req, res) => {
       });
     }
 
-    const maindir = path.join(__dirname, "..", "uploads", `/customers/${customer_id_ref}`);
+    const maindir = path.join(__dirname, "..", "uploads", "customers", customer_id_ref).replace(/\\/g, "/");
     // Check if maindir exists; if not, create it
     if (!fs.existsSync(maindir)) {
       fs.mkdirSync(maindir, { recursive: true });
     }
 
     // folderPath inside maindir
-    const folderdir = path.join(maindir, folderPath);
+    const folderdir = path.join(maindir, folderPath).replace(/\\/g, "/");
     // Check if folderdir exists; if not, create it
     if (!fs.existsSync(folderdir)) {
       fs.mkdirSync(folderdir, { recursive: true });
@@ -363,7 +371,19 @@ exports.uploadFile = async (req, res) => {
     const timestamp = Date.now();
     // Create a new filename by appending the timestamp
     const newFilename = `${path.basename(originalFilename, ext)}_${timestamp}${ext}`;
-    const targetPath = path.join(folderdir, newFilename);
+    const targetPath = path.join(folderdir, newFilename).replace(/\\/g, "/");
+
+    if (!resolvedParentId && folderPath && folderPath !== "filemanager") {
+      const parentFolder = await prisma.customerfilemanager.findFirst({
+        where: {
+          customer_id: customerdetails.id,
+          file_path: folderPath,
+          file_type: "folder",
+        },
+        select: { id: true },
+      });
+      resolvedParentId = parentFolder?.id || null;
+    }
 
     // Copy the file to the target directory
     fs.copyFileSync(tempPath, targetPath);
@@ -372,7 +392,7 @@ exports.uploadFile = async (req, res) => {
 
     // Insert the file into the database after uploading it to the server filesystem successfully
     try {
-      const fileUid = "ABODEF" + Math.floor(100000 + Math.random() * 900000);
+      const fileUid = uuidv4();
       const fileIconType = getFileIconType(fileType);
 
       // Insert the folder into the database
@@ -380,11 +400,11 @@ exports.uploadFile = async (req, res) => {
         data: {
           name: originalFilename,
           id: fileUid,
+          file_icon_type: fileIconType,
           file_type: new_file_type,
-          file_url: `${process.env.API_URL}/uploads/customers/${customer_id_ref}/${folderPath}/${newFilename}`,
-          // file_icon_type: fileIconType,
-          file_path: `${folderPath}/${newFilename}`,
-          parent_id: currentFolderId ? currentFolderId : null,
+          file_url: `${process.env.API_URL}/uploads/customers/${customer_id_ref}/${folderPath}/${newFilename}`.replace(/\\/g, "/"),
+          file_path: `${folderPath}/${newFilename}`.replace(/\\/g, "/"),
+          parent_id: resolvedParentId,
           customer_id: customerdetails?.id,
           added_by: user_id,
           created_at: new Date(),
@@ -461,8 +481,8 @@ exports.deleteFile = async (req, res) => {
     const customerId = file.customer_id;
 
     // Construct the full path of the file
-    const maindir = path.join(__dirname, "..", "uploads", `/customers/${customeruid}`);
-    const filePath = path.join(maindir, file.file_path);
+    const maindir = path.join(__dirname, "..", "uploads", "customers", customeruid).replace(/\\/g, "/");
+    const filePath = path.join(maindir, file.file_path).replace(/\\/g, "/");
 
     // Check if the file exists and delete it
     if (fs.existsSync(filePath)) {
@@ -576,7 +596,7 @@ exports.syncFileSystemWithDB = async (req, res) => {
           const fileType = isDirectory ? "folder" : path.extname(file.name).substring(1) || "file";
 
           // Generate UUID
-          const fileUid = isDirectory ? "ABDFM" + Math.floor(100000 + Math.random() * 900000) : "ABODEF" + Math.floor(100000 + Math.random() * 900000);
+          const fileUid = uuidv4();
 
           // Create new DB entry
           const newEntry = await prisma.customerfilemanager.create({
@@ -586,8 +606,8 @@ exports.syncFileSystemWithDB = async (req, res) => {
               file_icon_type: getFileIconType(fileType),
               file_type: isDirectory ? "folder" : fileType,
               file_size: isDirectory ? null : (await fs.promises.stat(fullPath)).size,
-              file_path: relativePath,
-              file_url: `${process.env.API_URL}/uploads/customers/${customer_id_ref}/${relativePath}`,
+              file_path: relativePath.replace(/\\/g, "/"),
+              file_url: `${process.env.API_URL}/uploads/customers/${customer_id_ref}/${relativePath}`.replace(/\\/g, "/"),
               parent_id: parentId,
               customer_id: customer.id,
               added_by: employee_id,
