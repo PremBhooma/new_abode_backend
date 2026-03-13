@@ -11,6 +11,8 @@ dayjs.extend(customParseFormat);
 const ExcelJS = require("exceljs");
 const logger = require("../helper/logger");
 const getAllocatedProjectIds = require("../utils/getAllocatedProjectIds");
+const { v4: uuidv4 } = require("uuid");
+
 
 exports.GetCustomers = async (req, res) => {
   const {
@@ -1768,11 +1770,13 @@ exports.AddCustomernote = async (req, res) => {
 
     await prisma.customernotes.create({
       data: {
+        id: uuidv4(),
         note_message: note,
         customer_id: customer.id,
         user_id: user_id,
       },
     });
+
 
     await prisma.customeractivities.create({
       data: {
@@ -3984,11 +3988,12 @@ exports.uploadCostSheet = async (req, res) => {
       });
 
       // Add to flatfilemanager so it shows up in documents
-      const fileUid = "ABODEF" + Math.floor(100000 + Math.random() * 900000);
+      const fileUid = uuidv4();
       await prisma.flatfilemanager.create({
         data: {
           name: originalFilename,
           id: fileUid,
+
           file_type: "pdf",
           file_url: file_url,
           file_icon_type: "pdf_icon",
