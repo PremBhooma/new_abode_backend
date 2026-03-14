@@ -1020,7 +1020,7 @@ exports.uploadParsedGlobal = async (req, res) => {
                 const flatSheet = workbook.Sheets["Flat Template"];
                 const flatData = xlsx.utils.sheet_to_json(flatSheet, { defval: "" });
 
-                console.log("Flat_data:", flatData)
+                // console.log("Flat_data:", flatData)
 
                 const flatTypeMap = {
                     "2 BHK": "2 BHK",
@@ -1112,7 +1112,7 @@ exports.uploadParsedGlobal = async (req, res) => {
                             floorNoVal = null;
                         }
 
-                        console.log("Floor_No: ", floorNoVal);
+                        // console.log("Floor_No: ", floorNoVal);
 
                         const newFlat = await prisma.flat.create({
                             data: {
@@ -1435,7 +1435,7 @@ exports.uploadParsedGlobal = async (req, res) => {
             if (workbook.SheetNames.includes("Assign Flat Template")) {
                 const assignSheet = workbook.Sheets["Assign Flat Template"];
                 let assignData = xlsx.utils.sheet_to_json(assignSheet, { defval: "" });
-                console.log("ASSIGN ENTERED:", assignData)
+                // console.log("ASSIGN ENTERED:", assignData)
 
                 assignData = assignData.filter(
                     row => row["Flat No"] || row["Block"] || row["Customer Phone"]
@@ -1511,6 +1511,7 @@ exports.uploadParsedGlobal = async (req, res) => {
                                 project_id: project_id
                             },
                         });
+                        console.log("Customer:", existingCustomer)
 
                         if (!existingCustomer) {
                             assignFlatToCustomerResult.skipped++;
@@ -1534,7 +1535,7 @@ exports.uploadParsedGlobal = async (req, res) => {
                         let totalFloorRise = null;
 
                         if (row["Floor Rise Charge Per Sq.ft (₹)"]) {
-                            if (Number(existingFlat?.floor_no) >= 5) {
+                            if (Number(existingFlat?.floor_no) >= 6) {
                                 floorRisePerSqFt = parseFloat(row["Floor Rise Charge Per Sq.ft (₹)"]) || null;
                                 totalFloorRise = parseFloat(row["Total Charge of Floor Rise (₹)"]) || null;
                             } else {
