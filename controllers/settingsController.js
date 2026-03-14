@@ -1005,7 +1005,9 @@ exports.uploadParsedGlobal = async (req, res) => {
             const allProjects = await prisma.project.findMany();
             const projectMap = {};
             allProjects.forEach(p => {
-                projectMap[p.project_name.toLowerCase().trim()] = p.id;
+                if (p.project_name) {
+                    projectMap[p.project_name.toLowerCase().trim()] = p.id;
+                }
             });
 
             const workbook = xlsx.readFile(file.path);
@@ -1038,37 +1040,39 @@ exports.uploadParsedGlobal = async (req, res) => {
                             continue;
                         }
 
-                        const project_id = projectMap[row["Project"].toString().trim().toLowerCase()];
+                        const project_id = projectMap[row["Project"] ? String(row["Project"]).trim().toLowerCase() : ""];
                         if (!project_id) {
                             flatResult.skipped++;
                             flatResult.skippedRows.push({ row, reason: "Project not found" });
                             continue;
                         }
 
+                        let blockName = row["Block"] ? String(row["Block"]).trim() : "";
                         let blockRecord = await prisma.block.findFirst({
-                            where: { block_name: row["Block"].trim(), project_id: project_id },
+                            where: { block_name: blockName, project_id: project_id },
                         });
 
-                        if (!blockRecord) {
+                        if (!blockRecord && blockName) {
                             blockRecord = await prisma.block.create({
                                 data: {
                                     id: "CRMEMP" + Math.floor(100000000 + Math.random() * 900000000),
-                                    block_name: row["Block"].trim(),
+                                    block_name: blockName,
                                     project_id: project_id,
                                 },
                             });
                         }
 
                         let groupOwnerRecord = null;
-                        if (row["Group/Owner"]?.trim()) {
+                        let groupOwnerName = row["Group/Owner"] ? String(row["Group/Owner"]).trim() : null;
+                        if (groupOwnerName) {
                             groupOwnerRecord = await prisma.groupowner.findFirst({
-                                where: { name: row["Group/Owner"].trim() },
+                                where: { name: groupOwnerName },
                             });
                             if (!groupOwnerRecord) {
                                 groupOwnerRecord = await prisma.groupowner.create({
                                     data: {
                                         id: "ABDGO" + Math.floor(100000000 + Math.random() * 900000000),
-                                        name: row["Group/Owner"].trim(),
+                                        name: groupOwnerName,
                                     },
                                 });
                             }
@@ -1097,7 +1101,7 @@ exports.uploadParsedGlobal = async (req, res) => {
                             continue;
                         }
 
-                        let googleMapLink = row["Google Map Link"]?.toString().trim() || null;
+                        let googleMapLink = row["Google Map Link"] ? String(row["Google Map Link"]).trim() : null;
                         if (googleMapLink && !googleMapRegex.test(googleMapLink)) {
                             googleMapLink = null;
                         }
@@ -1107,7 +1111,7 @@ exports.uploadParsedGlobal = async (req, res) => {
                             if (typeof floorNoVal === "object" && floorNoVal.result !== undefined) {
                                 floorNoVal = floorNoVal.result;
                             }
-                            floorNoVal = floorNoVal.toString().trim();
+                            floorNoVal = String(floorNoVal).trim();
                         } else {
                             floorNoVal = null;
                         }
@@ -1198,20 +1202,23 @@ exports.uploadParsedGlobal = async (req, res) => {
                     let countryId = null, stateId = null, cityId = null;
 
                     if (countryName) {
-                        const country = await prisma.country.findFirst({ where: { name: countryName.trim() } });
-                        if (!country) return { error: `Country '${countryName}' not found` };
+                        const name = String(countryName).trim();
+                        const country = await prisma.country.findFirst({ where: { name: name } });
+                        if (!country) return { error: `Country '${name}' not found` };
                         countryId = country.id;
                     }
 
                     if (stateName) {
-                        const state = await prisma.states.findFirst({ where: { name: stateName.trim() } });
-                        if (!state) return { error: `State '${stateName}' not found` };
+                        const name = String(stateName).trim();
+                        const state = await prisma.states.findFirst({ where: { name: name } });
+                        if (!state) return { error: `State '${name}' not found` };
                         stateId = state.id;
                     }
 
                     if (cityName) {
-                        const city = await prisma.cities.findFirst({ where: { name: cityName.trim() } });
-                        if (!city) return { error: `City '${cityName}' not found` };
+                        const name = String(cityName).trim();
+                        const city = await prisma.cities.findFirst({ where: { name: name } });
+                        if (!city) return { error: `City '${name}' not found` };
                         cityId = city.id;
                     }
 
@@ -1220,7 +1227,8 @@ exports.uploadParsedGlobal = async (req, res) => {
 
                 const resolveCountry = async (countryName) => {
                     if (!countryName) return null;
-                    const country = await prisma.country.findFirst({ where: { name: countryName.trim() } });
+                    const name = String(countryName).trim();
+                    const country = await prisma.country.findFirst({ where: { name: name } });
                     return country ? country.id : null;
                 };
 
@@ -1233,7 +1241,7 @@ exports.uploadParsedGlobal = async (req, res) => {
                             continue;
                         }
 
-                        const project_id = projectMap[row["Project"].toString().trim().toLowerCase()];
+                        const project_id = projectMap[row["Project"] ? String(row["Project"]).trim().toLowerCase() : ""];
                         if (!project_id) {
                             customerResult.skipped++;
                             customerResult.skippedRows.push({ row, reason: "Project not found" });
@@ -1241,7 +1249,7 @@ exports.uploadParsedGlobal = async (req, res) => {
                         }
 
                         // ✅ Email validation
-                        const email = row["Email Address"]?.toString().trim().toLowerCase();
+                        const email = row["Email Address"] ? String(row["Email Address"]).trim().toLowerCase() : "";
                         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
                         if (!emailRegex.test(email)) {
                             customerResult.skipped++;
@@ -1256,7 +1264,7 @@ exports.uploadParsedGlobal = async (req, res) => {
                         }
 
                         // ✅ Phone validation
-                        const phone = row["Phone Number"].toString().trim();
+                        const phone = row["Phone Number"] ? String(row["Phone Number"]).trim() : "";
                         if (!/^\d{10}$/.test(phone)) {
                             customerResult.skipped++;
                             customerResult.skippedRows.push({ row, reason: "Invalid phone" });
@@ -1289,7 +1297,7 @@ exports.uploadParsedGlobal = async (req, res) => {
                             row["Have you ever owned a Abode home / property?"] = null;
                             continue;
                         }
-                        if (row["Have you ever owned a Abode home / property?"]?.toString().toLowerCase() === "yes" && !row["If Yes, Project Name"]) {
+                        if (row["Have you ever owned a Abode home / property?"] && String(row["Have you ever owned a Abode home / property?"]).toLowerCase() === "yes" && !row["If Yes, Project Name"]) {
                             row["If Yes, Project Name"] = null;
                         }
 
@@ -1335,8 +1343,8 @@ exports.uploadParsedGlobal = async (req, res) => {
                         const customer = await prisma.customers.create({
                             data: {
                                 prefixes: row["Prefixes"] || null,
-                                first_name: row["First Name"].trim(),
-                                last_name: row["Last Name"].trim(),
+                                first_name: row["First Name"] ? String(row["First Name"]).trim() : "",
+                                last_name: row["Last Name"] ? String(row["Last Name"]).trim() : "",
                                 email,
                                 email_2: row["Alternate Email Address"] || null,
                                 phone_code: "91",
@@ -1359,7 +1367,7 @@ exports.uploadParsedGlobal = async (req, res) => {
                                 holder_poa: row["If POA Holder is Indian, specify status"] || null,
                                 no_of_years_correspondence_address: row["Number of years residing at correspondence address"] ? parseInt(row["Number of years residing at correspondence address"]) : null,
                                 no_of_years_city: row["Number of years residing at city"] ? parseInt(row["Number of years residing at city"]) : null,
-                                have_you_owned_abode: row["Have you ever owned a Abode home / property?"]?.toString().toLowerCase() === "yes",
+                                have_you_owned_abode: row["Have you ever owned a Abode home / property?"] ? String(row["Have you ever owned a Abode home / property?"]).toLowerCase() === "yes" : false,
                                 if_owned_project_name: row["If Yes, Project Name"] || null,
                                 added_by_employee_id: employee_id,
                                 project_id: project_id,
@@ -1472,7 +1480,7 @@ exports.uploadParsedGlobal = async (req, res) => {
                             continue;
                         }
 
-                        const project_id = projectMap[row["Project"].toString().trim().toLowerCase()];
+                        const project_id = projectMap[row["Project"] ? String(row["Project"]).trim().toLowerCase() : ""];
                         if (!project_id) {
                             assignFlatToCustomerResult.skipped++;
                             assignFlatToCustomerResult.skippedRows.push({ row, reason: "Project not found" });
@@ -1480,8 +1488,9 @@ exports.uploadParsedGlobal = async (req, res) => {
                         }
 
                         // Find Block
+                        let blockName = row["Block"] ? String(row["Block"]).trim() : "";
                         const blockRecord = await prisma.block.findFirst({
-                            where: { block_name: row["Block"].trim(), project_id: project_id },
+                            where: { block_name: blockName, project_id: project_id },
                         });
 
                         if (!blockRecord) {
@@ -1507,7 +1516,7 @@ exports.uploadParsedGlobal = async (req, res) => {
 
                         let existingCustomer = await prisma.customers.findFirst({
                             where: {
-                                phone_number: row["Customer Phone"].toString().trim(),
+                                phone_number: row["Customer Phone"] ? String(row["Customer Phone"]).trim() : "",
                                 project_id: project_id
                             },
                         });
@@ -1540,7 +1549,7 @@ exports.uploadParsedGlobal = async (req, res) => {
                                 totalFloorRise = parseFloat(row["Total Charge of Floor Rise (₹)"]) || null;
                             } else {
                                 assignFlatToCustomerResult.skipped++;
-                                assignFlatToCustomerResult.skippedRows.push({ row, reason: "This flat's floor number is less than 5" });
+                                assignFlatToCustomerResult.skippedRows.push({ row, reason: "This flat's floor number is less than 6" });
                                 continue;
                             }
                         }
@@ -1675,7 +1684,7 @@ exports.uploadParsedGlobal = async (req, res) => {
                             continue;
                         }
 
-                        const project_id = projectMap[row["Project"].toString().trim().toLowerCase()];
+                        const project_id = projectMap[row["Project"] ? String(row["Project"]).trim().toLowerCase() : ""];
                         if (!project_id) {
                             paymentResult.skipped++;
                             paymentResult.skippedRows.push({ row, reason: "Project not found" });
@@ -1683,8 +1692,9 @@ exports.uploadParsedGlobal = async (req, res) => {
                         }
 
                         // Find Block
+                        let blockName = row["Block"] ? String(row["Block"]).trim() : "";
                         const blockRecord = await prisma.block.findFirst({
-                            where: { block_name: row["Block"].trim(), project_id: project_id },
+                            where: { block_name: blockName, project_id: project_id },
                         });
 
                         if (!blockRecord) {
