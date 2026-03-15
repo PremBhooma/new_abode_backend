@@ -1666,24 +1666,27 @@ exports.uploadParsedGlobal = async (req, res) => {
 
                             const enteredAmenities = parseFloat(row["Amenities (₹)"]);
 
+                            // ❌ Amenities config not found
                             if (!amenitiesConfig) {
                                 assignFlatToCustomerResult.skipped++;
                                 assignFlatToCustomerResult.skippedRows.push({
                                     row,
-                                    reason: `Amenities configuration not found for Flat Type ${existingFlat?.type}`
+                                    reason: `Amenities amount for Flat Type '${existingFlat?.type}' in Project '${row["Project"]}' does not exist. Please add the value in Amenities configuration and download the file again.`,
                                 });
                                 continue;
                             }
 
-                            if (enteredAmenities > amenitiesConfig.amount) {
+                            // ❌ Entered value must match config amount exactly
+                            if (enteredAmenities !== amenitiesConfig.amount) {
                                 assignFlatToCustomerResult.skipped++;
                                 assignFlatToCustomerResult.skippedRows.push({
                                     row,
-                                    reason: `Amenities amount exceeds allowed limit (${amenitiesConfig.amount}) for Flat Type ${existingFlat?.type}`
+                                    reason: `Amenities amount must be exactly ${amenitiesConfig.amount} for Flat Type '${existingFlat?.type}' in this project.`,
                                 });
                                 continue;
                             }
 
+                            // ✅ Valid value
                             amenitiesAmount = enteredAmenities;
                         }
 
