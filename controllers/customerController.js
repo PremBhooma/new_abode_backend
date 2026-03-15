@@ -3250,7 +3250,7 @@ exports.uploadParsedCustomers = async (req, res) => {
           // Case 2: String formats
           const parsedDate = dayjs(
             val,
-            ["DD-MM-YYYY", "D/M/YYYY", "MM-DD-YYYY", "YYYY-MM-DD"],
+            ["DD/MM/YYYY", "D/M/YYYY", "DD-MM-YYYY", "D-M-YYYY", "MM/DD/YYYY", "MM-DD-YYYY", "YYYY-MM-DD"],
             true,
           );
           if (parsedDate.isValid()) {
@@ -3398,6 +3398,28 @@ exports.uploadParsedCustomers = async (req, res) => {
           const dob = parseDate(row["Date of Birth"]);
           const anniversary = parseDate(row["Wedding Aniversary"]);
           const spouseDob = parseDate(row["Spouse DOB"]);
+
+
+          // Validate DOB
+          if (row["Date of Birth"] && !dob) {
+            throw new Error(
+              `Invalid Date of Birth format: '${row["Date of Birth"]}'. Allowed formats: DD/MM/YYYY, DD-MM-YYYY, MM/DD/YYYY, YYYY-MM-DD`
+            );
+          }
+
+          // Validate Anniversary
+          if (row["Wedding Aniversary"] && !anniversary) {
+            throw new Error(
+              `Invalid Wedding Anniversary format: '${row["Wedding Aniversary"]}'. Allowed formats: DD/MM/YYYY, DD-MM-YYYY, MM/DD/YYYY, YYYY-MM-DD`
+            );
+          }
+
+          // Validate Spouse DOB
+          if (row["Spouse DOB"] && !spouseDob) {
+            throw new Error(
+              `Invalid Spouse DOB format: '${row["Spouse DOB"]}'. Allowed formats: DD/MM/YYYY, DD-MM-YYYY, MM/DD/YYYY, YYYY-MM-DD`
+            );
+          }
 
           // ✅ Resolve Country / State / City
           const resolveLocation = async (countryName, stateName, cityName) => {

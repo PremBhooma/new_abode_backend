@@ -1056,7 +1056,7 @@ exports.uploadParsedGlobal = async (req, res) => {
                         if (!blockRecord && blockName) {
                             blockRecord = await prisma.block.create({
                                 data: {
-                                    id: "CRMEMP" + Math.floor(100000000 + Math.random() * 900000000),
+                                    id: uuidv4(),
                                     block_name: blockName,
                                     project_id: project_id,
                                 },
@@ -1191,7 +1191,7 @@ exports.uploadParsedGlobal = async (req, res) => {
                         date = new Date(excelEpoch.getTime() + (val - 2) * 86400000);
                     } else if (typeof val === "string") {
                         // String formats
-                        const parsedDate = dayjs(val, ["DD-MM-YYYY", "D/M/YYYY", "MM-DD-YYYY", "YYYY-MM-DD"], true);
+                        const parsedDate = dayjs(val, ["DD/MM/YYYY", "D/M/YYYY", "DD-MM-YYYY", "D-M-YYYY", "MM/DD/YYYY", "MM-DD-YYYY", "YYYY-MM-DD"], true);
                         if (parsedDate.isValid()) {
                             date = new Date(Date.UTC(parsedDate.year(), parsedDate.month(), parsedDate.date()));
                         }
@@ -1311,6 +1311,27 @@ exports.uploadParsedGlobal = async (req, res) => {
                         const dob = parseDate(row["Date of Birth"]);
                         const anniversary = parseDate(row["Wedding Aniversary"]);
                         const spouseDob = parseDate(row["Spouse DOB"]);
+
+                        // Validate DOB
+                        if (!dob) {
+                            customerResult.skipped++;
+                            customerResult.skippedRows.push({ row, reason: `Invalid Date of Birth format: ${row["Date of Birth"]}. Allowed formats: DD/MM/YYYY, D/M/YYYY, DD-MM-YYYY, D-M-YYYY, MM/DD/YYYY, MM-DD-YYYY, YYYY-MM-DD` });
+                            continue;
+                        }
+
+                        // Validate Anniversary
+                        if (!anniversary) {
+                            customerResult.skipped++;
+                            customerResult.skippedRows.push({ row, reason: `Invalid Wedding Anniversary format: ${row["Wedding Anniversary"]}. Allowed formats: DD/MM/YYYY, D/M/YYYY, DD-MM-YYYY, D-M-YYYY, MM/DD/YYYY, MM-DD-YYYY, YYYY-MM-DD` });
+                            continue;
+                        }
+
+                        // Validate Spouse DOB
+                        if (!spouseDob) {
+                            customerResult.skipped++;
+                            customerResult.skippedRows.push({ row, reason: `Invalid Spouse DOB format: ${row["Spouse DOB"]}. Allowed formats: DD/MM/YYYY, D/M/YYYY, DD-MM-YYYY, D-M-YYYY, MM/DD/YYYY, MM-DD-YYYY, YYYY-MM-DD` });
+                            continue;
+                        }
 
                         // ✅ Country mapping
                         const citizenshipId = await resolveCountry(row["Country of Citizenship"]);
@@ -1484,7 +1505,7 @@ exports.uploadParsedGlobal = async (req, res) => {
                         date = new Date(excelEpoch.getTime() + (val - 2) * 86400000);
                     } else if (typeof val === "string") {
                         // String formats
-                        const parsedDate = dayjs(val, ["DD-MM-YYYY", "D/M/YYYY", "MM-DD-YYYY", "YYYY-MM-DD"], true);
+                        const parsedDate = dayjs(val, ["DD/MM/YYYY", "D/M/YYYY", "DD-MM-YYYY", "D-M-YYYY", "MM/DD/YYYY", "MM-DD-YYYY", "YYYY-MM-DD"], true);
                         if (parsedDate.isValid()) {
                             date = new Date(Date.UTC(parsedDate.year(), parsedDate.month(), parsedDate.date()));
                         }
@@ -1638,6 +1659,8 @@ exports.uploadParsedGlobal = async (req, res) => {
 
 
 
+
+
                         // ✅ Insert Assign Flat to Customer
                         const customer = await prisma.customerflat.create({
                             data: {
@@ -1714,7 +1737,11 @@ exports.uploadParsedGlobal = async (req, res) => {
                         date = new Date(excelEpoch.getTime() + (val - 2) * 86400000);
                     } else if (typeof val === "string") {
                         // String formats
-                        const parsedDate = dayjs(val, ["DD-MM-YYYY", "D/M/YYYY", "MM-DD-YYYY", "YYYY-MM-DD"], true);
+                        const parsedDate = dayjs(
+                            val.trim(),
+                            ["DD/MM/YYYY", "D/M/YYYY", "DD-MM-YYYY", "D-M-YYYY", "MM/DD/YYYY", "MM-DD-YYYY", "YYYY-MM-DD"],
+                            true
+                        );
                         if (parsedDate.isValid()) {
                             date = new Date(Date.UTC(parsedDate.year(), parsedDate.month(), parsedDate.date()));
                         }
@@ -1807,11 +1834,21 @@ exports.uploadParsedGlobal = async (req, res) => {
                             continue;
                         }
 
+
+
                         // ✅ Date validations
                         const parsedDateOfPayment = parseDate(row["Date of Payment"]);
-                        console.log("ROW_DATE:", row["Date of Payment"])
-
+                        console.log("Row_DATE:", row["Date of Payment"])
                         console.log("FINAL_DATE:", parsedDateOfPayment)
+
+                        if (!parsedDateOfPayment) {
+                            paymentResult.skipped++;
+                            paymentResult.skippedRows.push({
+                                row,
+                                reason: "Invalid Date of Payment. Supported formats: DD/MM/YYYY, DD-MM-YYYY, MM/DD/YYYY, MM-DD-YYYY, YYYY-MM-DD, or Excel date cells.",
+                            });
+                            continue;
+                        }
 
                         // ✅ Insert payments
                         const customer = await prisma.payments.create({

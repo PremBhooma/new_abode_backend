@@ -9,6 +9,7 @@ dayjs.extend(customParseFormat);
 const ExcelJS = require("exceljs");
 const logger = require("../helper/logger");
 const getAllocatedProjectIds = require("../utils/getAllocatedProjectIds");
+const { v4: uuidv4 } = require('uuid');
 
 const serializeBigInt = (obj) => {
   return JSON.parse(JSON.stringify(obj, (key, value) => (typeof value === "bigint" ? value.toString() : value)));
@@ -183,7 +184,7 @@ exports.addPayment = async (req, res) => {
     }
 
     // REMOVED: const uuid = "ABDPT" + Math.floor(100000 + Math.random() * 900000).toString();
-    const { v4: uuidv4 } = require('uuid');
+
     const paymentUuid = uuidv4();
     let receiptUrl = null;
     let receiptPath = null;
@@ -494,7 +495,6 @@ exports.addBulkPayment = async (req, res) => {
         } = row;
 
         // REMOVED: const uuid = "ABDPT" + Math.floor(100000 + Math.random() * 900000).toString();
-        const { v4: uuidv4 } = require('uuid');
         const paymentUuid = uuidv4();
         let receiptUrl = null;
         let receiptPath = null;
@@ -1465,7 +1465,7 @@ exports.uploadPayments = async (req, res) => {
 
         await prisma.payments.create({
           data: {
-            id: "ABDPT" + Math.floor(100000000 + Math.random() * 900000000).toString(),
+            id: uuidv4(),
             amount: parsedAmount,
             payment_type: paymentType,
             payment_towards: paymentTowards,
@@ -1601,7 +1601,7 @@ exports.uploadParsedPayments = async (req, res) => {
             const excelEpoch = new Date(Date.UTC(1900, 0, 1));
             paymentData = new Date(excelEpoch.getTime() + (dateofPayment - 2) * 86400000);
           } else {
-            const parsedDate = dayjs(dateofPayment, ["DD-MM-YYYY", "D/M/YYYY", "MM-DD-YYYY", "YYYY-MM-DD"], true);
+            const parsedDate = dayjs(dateofPayment, ["DD/MM/YYYY", "D/M/YYYY", "DD-MM-YYYY", "D-M-YYYY", "MM/DD/YYYY", "MM-DD-YYYY", "YYYY-MM-DD"], true);
             if (parsedDate.isValid()) {
               paymentData = new Date(Date.UTC(parsedDate.year(), parsedDate.month(), parsedDate.date()));
             }
@@ -1713,11 +1713,13 @@ exports.uploadParsedPayments = async (req, res) => {
           }
         }
 
+
+
         if (isValid) {
           try {
             const newPayment = await prisma.parsedpayments.create({
               data: {
-                id: "ABDPT" + Math.floor(100000000 + Math.random() * 900000000).toString(),
+                id: uuidv4(),
                 amount: parsedAmount,
                 payment_type: paymentType,
                 payment_towards: paymentTowards,
