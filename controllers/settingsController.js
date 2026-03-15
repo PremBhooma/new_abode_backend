@@ -1853,7 +1853,7 @@ exports.uploadParsedGlobal = async (req, res) => {
                         // Find Block
                         let blockName = robustTrim(row["Block"]);
                         const blockRecord = await prisma.block.findFirst({
-                            where: { block_name: blockName, project_id: project_id },
+                            where: { block_name: blockName },
                         });
 
                         if (!blockRecord) {
@@ -1932,10 +1932,6 @@ exports.uploadParsedGlobal = async (req, res) => {
                         const bookingDate = new Date(flatCost?.application_date);
                         const paymentDate = new Date(parsedDateOfPayment);
                         const presentDate = new Date();
-
-                        console.log("Booking Date:", bookingDate);
-                        console.log("Present Date:", presentDate);
-                        console.log("FINAL_DATE:", paymentDate);
 
                         // normalize to YYYY-MM-DD
                         const bookingValue = bookingDate.toISOString().slice(0, 10);
