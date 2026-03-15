@@ -1885,6 +1885,13 @@ exports.uploadParsedGlobal = async (req, res) => {
                             where: { flat_id: existingFlat?.id },
                             select: {
                                 toatlcostofuint: true,
+                                gst: true,
+                                registrationcharge: true,
+                                maintenancecharge: true,
+                                documentaionfee: true,
+                                corpusfund: true,
+                                manjeera_connection_charge: true,
+                                manjeera_meter_charge: true,
                                 application_date: true,
                                 grand_total: true,
                                 flat: { select: { flat_no: true, block: { select: { block_name: true } } } },
@@ -1913,6 +1920,43 @@ exports.uploadParsedGlobal = async (req, res) => {
                             paymentResult.skipped++;
                             paymentResult.skippedRows.push({ row, reason: `Flat: ${flatCost?.flat?.flat_no} (Block: ${flatCost?.flat?.block.block_name}) → Total payments cannot exceed flat cost` });
                             continue;
+                        }
+
+                        // ✅ Category-wise validation
+                        const paymentTowards = robustTrim(row["Payment Towards"]);
+                        const categoryMapping = {
+                            "Flat": "toatlcostofuint",
+                            "GST": "gst",
+                            "Registration": "registrationcharge",
+                            "Maintenance": "maintenancecharge",
+                            "Documentation Fee": "documentaionfee",
+                            "Corpus Fund": "corpusfund",
+                            "Manjeera Connection Charge": "manjeera_connection_charge",
+                            "Manjeera Meter Connection": "manjeera_meter_charge"
+                        };
+
+                        const targetField = categoryMapping[paymentTowards];
+                        if (targetField) {
+                            const categoryTotal = await prisma.payments.aggregate({
+                                _sum: { amount: true },
+                                where: {
+                                    flat_id: existingFlat?.id,
+                                    payment_towards: paymentTowards
+                                },
+                            });
+
+                            const existingCategoryPayments = categoryTotal._sum.amount || 0;
+                            const newCategoryTotal = existingCategoryPayments + rowAmount;
+                            const allowedAmount = flatCost[targetField] || 0;
+
+                            if (newCategoryTotal > allowedAmount) {
+                                paymentResult.skipped++;
+                                paymentResult.skippedRows.push({
+                                    row,
+                                    reason: `Flat: ${flatCost?.flat?.flat_no} (Block: ${flatCost?.flat?.block.block_name}) → Total payments for '${paymentTowards}' (${newCategoryTotal}) cannot exceed allowed amount (${allowedAmount})`
+                                });
+                                continue;
+                            }
                         }
 
 
