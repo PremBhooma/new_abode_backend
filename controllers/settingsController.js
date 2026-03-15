@@ -11,6 +11,7 @@ const fse = require("fs-extra");
 const logger = require("../helper/logger");
 const xlsx = require("xlsx");
 const dayjs = require("dayjs");
+const { v4: uuidv4 } = require('uuid');
 
 let currentTask = null;
 
@@ -575,7 +576,7 @@ exports.restoreDataBackup = async (req, res) => {
                     // If not in DB, insert it
                     const newRec = await prisma.backupdata.create({
                         data: {
-                            id: "ABDDB" + Date.now(), // or your uuid gen
+                            id: uuidv4(), // or your uuid gen
                             backup_name: fb.backup_name,
                             backup_path: fb.backup_path,
                             created_at: fb.created_at,
@@ -1071,7 +1072,7 @@ exports.uploadParsedGlobal = async (req, res) => {
                             if (!groupOwnerRecord) {
                                 groupOwnerRecord = await prisma.groupowner.create({
                                     data: {
-                                        id: "ABDGO" + Math.floor(100000000 + Math.random() * 900000000),
+                                        id: uuidv4(),
                                         name: groupOwnerName,
                                     },
                                 });
@@ -1120,7 +1121,7 @@ exports.uploadParsedGlobal = async (req, res) => {
 
                         const newFlat = await prisma.flat.create({
                             data: {
-                                id: "ABODE" + Math.floor(100000000 + Math.random() * 900000000),
+                                id: uuidv4(),
                                 flat_no: row["Flat No"].toString(),
                                 floor_no: floorNoVal,
                                 block_id: blockRecord.id,
@@ -1797,7 +1798,7 @@ exports.uploadParsedGlobal = async (req, res) => {
                         // ✅ Insert payments
                         const customer = await prisma.payments.create({
                             data: {
-                                id: "ABDPT" + Math.floor(100000 + Math.random() * 900000).toString(),
+                                id: uuidv4(),
                                 flat_id: existingFlat?.id,
                                 customer_id: existingFlat?.customer_id,
                                 amount: parseFloat(row["Amount"]) || null,
