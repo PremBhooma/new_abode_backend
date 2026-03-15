@@ -1737,7 +1737,7 @@ exports.uploadParsedGlobal = async (req, res) => {
 
 
                         // ✅ Insert Assign Flat to Customer
-                        const customer = await prisma.customerflat.create({
+                        const customerFlat = await prisma.customerflat.create({
                             data: {
                                 flat_id: existingFlat?.id,
                                 customer_id: existingCustomer?.id,
@@ -1761,6 +1761,23 @@ exports.uploadParsedGlobal = async (req, res) => {
                                 documentaionfee: parseFloat(row["Documentation Fee (₹)"]) || null,
                                 corpusfund: parseFloat(row["Corpus Fund (₹)"]) || null,
                                 grand_total: parseFloat(row["Grand Total (₹)"]) || null,
+                            },
+                        });
+
+                        await prisma.ageingrecord.create({
+                            data: {
+                                project_id: project_id,
+                                customer_id: existingCustomer?.id,
+                                customer_flat: customerFlat?.id,
+                                flat_id: existingFlat?.id,
+                                booking_date: parsedApplicationDate,
+                                total_amount: 0,
+                                ageing_days: parsedApplicationDate
+                                    ? Math.floor((new Date() - new Date(parsedApplicationDate)) / (1000 * 60 * 60 * 24))
+                                    : 0,
+                                loan_Status: "NotApplied",
+                                registration_status: "NotRegistered",
+                                created_at: new Date(),
                             },
                         });
 
