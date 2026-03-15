@@ -1256,10 +1256,15 @@ exports.uploadParsedGlobal = async (req, res) => {
                             customerResult.skippedRows.push({ row, reason: "Invalid email" });
                             continue;
                         }
-                        const existingEmail = await prisma.customers.findFirst({ where: { email } });
+                        const existingEmail = await prisma.customers.findFirst({
+                            where: {
+                                email,
+                                project_id: project_id,
+                            },
+                        });
                         if (existingEmail) {
                             customerResult.skipped++;
-                            customerResult.skippedRows.push({ row, reason: "Duplicate email" });
+                            customerResult.skippedRows.push({ row, reason: "Duplicate email within the same project" });
                             continue;
                         }
 
