@@ -1035,9 +1035,9 @@ exports.uploadParsedGlobal = async (req, res) => {
 
                 for (const row of flatData) {
                     try {
-                        if (!row["Flat No"] || !row["Floor No"] || !row["Block"] || !row["Project"]) {
+                        if (!row["Flat No"] || !row["Floor No"] || !row["Block"] || !row["Project"] || !row["Facing"] || !row["Corner"] || !row["Flat Type"] || !row["Area(Sq.ft.)"]) {
                             flatResult.skipped++;
-                            flatResult.skippedRows.push({ row, reason: "Missing Flat No, Floor No, Block or Project" });
+                            flatResult.skippedRows.push({ row, reason: "Missing Project, Flat No, Floor No, Block, Area(Sq.ft.), Facing, Flat Type and Corner" });
                             continue;
                         }
 
