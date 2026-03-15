@@ -132,7 +132,7 @@ model Customers {
   prefixes                           Prefixes?
   first_name                         String?          @db.VarChar(255)
   last_name                          String?          @db.VarChar(255)
-  email                              String?          @unique @db.VarChar(255)
+  email                              String?          @db.VarChar(255)
   email_2                            String?          @db.VarChar(255)
   phone_code                         String?          @db.VarChar(10)
   phone_number                       String?          @db.VarChar(100)

@@ -1346,39 +1346,52 @@ exports.uploadParsedGlobal = async (req, res) => {
                         // REMOVED: // REMOVED: // REMOVED: const uuid = "CUST" + Math.floor(100000 + Math.random() * 900000);
 
                         // ✅ Insert Customer
-                        const customer = await prisma.customers.create({
-                            data: {
-                                prefixes: row["Prefixes"] || null,
-                                first_name: row["First Name"] ? String(row["First Name"]).trim() : "",
-                                last_name: row["Last Name"] ? String(row["Last Name"]).trim() : "",
-                                email,
-                                email_2: row["Alternate Email Address"] || null,
-                                phone_code: "91",
-                                phone_number: phone,
-                                gender: row["Gender"] || null,
-                                date_of_birth: dob || null,
-                                father_name: row["Father Name"] || null,
-                                spouse_prefixes: row["Spouse Prefixes"] || null,
-                                spouse_name: row["Spouse Name"] || null,
-                                marital_status: row["Marital Status"] || null,
-                                number_of_children: row["Number of Children"] ? parseInt(row["Number of Children"]) : null,
-                                wedding_aniversary: anniversary || null,
-                                spouse_dob: spouseDob || null,
-                                pan_card_no: row["Pan Card No"] ? row["Pan Card No"].toString().toUpperCase() : null,
-                                aadhar_card_no: row["Aadhar Card No"] ? String(row["Aadhar Card No"]) : null,
-                                country_of_citizenship: citizenshipId || null,
-                                country_of_residence: residenceId || null,
-                                mother_tongue: row["Mother Tongue"] || null,
-                                name_of_poa: row["Name of Power of Attorney (POA) Holder"] || null,
-                                holder_poa: row["If POA Holder is Indian, specify status"] || null,
-                                no_of_years_correspondence_address: row["Number of years residing at correspondence address"] ? parseInt(row["Number of years residing at correspondence address"]) : null,
-                                no_of_years_city: row["Number of years residing at city"] ? parseInt(row["Number of years residing at city"]) : null,
-                                have_you_owned_abode: row["Have you ever owned a Abode home / property?"] ? String(row["Have you ever owned a Abode home / property?"]).toLowerCase() === "yes" : false,
-                                if_owned_project_name: row["If Yes, Project Name"] || null,
-                                added_by_employee_id: employee_id,
-                                project_id: project_id,
-                            },
-                        });
+                        let customer;
+                        try {
+                            customer = await prisma.customers.create({
+                                data: {
+                                    prefixes: row["Prefixes"] || null,
+                                    first_name: row["First Name"] ? String(row["First Name"]).trim() : "",
+                                    last_name: row["Last Name"] ? String(row["Last Name"]).trim() : "",
+                                    email,
+                                    email_2: row["Alternate Email Address"] || null,
+                                    phone_code: "91",
+                                    phone_number: phone,
+                                    gender: row["Gender"] || null,
+                                    date_of_birth: dob || null,
+                                    father_name: row["Father Name"] || null,
+                                    spouse_prefixes: row["Spouse Prefixes"] || null,
+                                    spouse_name: row["Spouse Name"] || null,
+                                    marital_status: row["Marital Status"] || null,
+                                    number_of_children: row["Number of Children"] ? parseInt(row["Number of Children"]) : null,
+                                    wedding_aniversary: anniversary || null,
+                                    spouse_dob: spouseDob || null,
+                                    pan_card_no: row["Pan Card No"] ? row["Pan Card No"].toString().toUpperCase() : null,
+                                    aadhar_card_no: row["Aadhar Card No"] ? String(row["Aadhar Card No"]) : null,
+                                    country_of_citizenship: citizenshipId || null,
+                                    country_of_residence: residenceId || null,
+                                    mother_tongue: row["Mother Tongue"] || null,
+                                    name_of_poa: row["Name of Power of Attorney (POA) Holder"] || null,
+                                    holder_poa: row["If POA Holder is Indian, specify status"] || null,
+                                    no_of_years_correspondence_address: row["Number of years residing at correspondence address"] ? parseInt(row["Number of years residing at correspondence address"]) : null,
+                                    no_of_years_city: row["Number of years residing at city"] ? parseInt(row["Number of years residing at city"]) : null,
+                                    have_you_owned_abode: row["Have you ever owned a Abode home / property?"] ? String(row["Have you ever owned a Abode home / property?"]).toLowerCase() === "yes" : false,
+                                    if_owned_project_name: row["If Yes, Project Name"] || null,
+                                    added_by_employee_id: employee_id,
+                                    project_id: project_id,
+                                },
+                            });
+                        } catch (createError) {
+                            if (createError.code === "P2002" && createError.meta?.target?.includes("email")) {
+                                customerResult.skipped++;
+                                customerResult.skippedRows.push({
+                                    row,
+                                    reason: "Email already exists in another project because the database still enforces global email uniqueness. Remove the global unique constraint on Customers.email and add a per-project unique constraint instead.",
+                                });
+                                continue;
+                            }
+                            throw createError;
+                        }
 
                         // ✅ Correspondence Address
                         if (row["Address of Correspondence, Address"]) {
@@ -1556,7 +1569,7 @@ exports.uploadParsedGlobal = async (req, res) => {
                                 project_id: project_id
                             },
                         });
-                        console.log("Customer:", existingCustomer)
+                        // console.log("Customer:", existingCustomer)
 
                         if (!existingCustomer) {
                             assignFlatToCustomerResult.skipped++;
@@ -1710,6 +1723,9 @@ exports.uploadParsedGlobal = async (req, res) => {
                 };
 
 
+                console.log("Date_DATE:", parseDate)
+
+
 
                 for (const row of paymentData) {
                     try {
@@ -1793,7 +1809,9 @@ exports.uploadParsedGlobal = async (req, res) => {
 
                         // ✅ Date validations
                         const parsedDateOfPayment = parseDate(row["Date of Payment"]);
+                        console.log("ROW_DATE:", row["Date of Payment"])
 
+                        console.log("FINAL_DATE:", parsedDateOfPayment)
 
                         // ✅ Insert payments
                         const customer = await prisma.payments.create({
