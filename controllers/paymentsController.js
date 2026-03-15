@@ -1713,27 +1713,32 @@ exports.uploadParsedPayments = async (req, res) => {
           }
           const flatAcc = localAccumulator[flatId];
 
-          if (!flatAcc.categories[paymentTowards]) {
-            const { remaining, total_paid, grand_total, found } = await getPaymentCategoryRemaining(flatId, customerId, paymentTowards);
-            flatAcc.categories[paymentTowards] = { remaining, accumulated_category: 0 };
-            flatAcc.total_paid = total_paid;
-            flatAcc.grand_total = grand_total;
-            flatAcc.found = found;
+          if (!localAccumulator[flatId].categories[paymentTowards]) {
+            const { remaining, total_paid, grand_total, found, actual } = await getPaymentCategoryRemaining(flatId, customerId, paymentTowards);
+            localAccumulator[flatId].categories[paymentTowards] = { remaining, allowed: actual, accumulated_category: 0 };
+            localAccumulator[flatId].total_paid = total_paid;
+            localAccumulator[flatId].grand_total = grand_total;
+            localAccumulator[flatId].found = found;
           }
 
-          if (flatAcc.found && !isNaN(parsedAmount)) {
-            const catAcc = flatAcc.categories[paymentTowards];
+          if (localAccumulator[flatId].found && !isNaN(parsedAmount)) {
+            const catAcc = localAccumulator[flatId].categories[paymentTowards];
+            const currentCategoryTotal = (catAcc.allowed - catAcc.remaining) + catAcc.accumulated_category + parsedAmount;
+
             if (catAcc.accumulated_category + parsedAmount > catAcc.remaining) {
-              skipReason.push(`Amount exceeds the remaining balance for ${paymentTowards}`);
+              skipReason.push(`Flat: ${flat} (Block: ${block}) → Total payments for '${paymentTowards}' (${currentCategoryTotal}) cannot exceed allowed amount (${catAcc.allowed})`);
               isValid = false;
             }
-            if (flatAcc.total_paid + flatAcc.accumulated_total + parsedAmount > flatAcc.grand_total) {
-              skipReason.push(`Total payments cannot exceed flat cost`);
+
+            if (isValid && localAccumulator[flatId].total_paid + localAccumulator[flatId].accumulated_total + parsedAmount > localAccumulator[flatId].grand_total) {
+              const currentGrandTotal = localAccumulator[flatId].total_paid + localAccumulator[flatId].accumulated_total + parsedAmount;
+              skipReason.push(`Flat: ${flat} (Block: ${block}) → Total payments (${currentGrandTotal}) cannot exceed flat cost (${localAccumulator[flatId].grand_total})`);
               isValid = false;
             }
+
             if (isValid) {
               catAcc.accumulated_category += parsedAmount;
-              flatAcc.accumulated_total += parsedAmount;
+              localAccumulator[flatId].accumulated_total += parsedAmount;
             }
           }
         }
