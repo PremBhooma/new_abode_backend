@@ -15,7 +15,7 @@ const serializeBigInt = (obj) => {
   return JSON.parse(JSON.stringify(obj, (key, value) => (typeof value === "bigint" ? value.toString() : value)));
 };
 
-const updateAgeingRecordTotal = async (flat_id, project_id, block_id, customer_id) => {
+exports.updateAgeingRecordTotal = async (flat_id, project_id, block_id, customer_id) => {
   try {
     // Calculate total amount paid for the flat
     const totalPaid = await prisma.payments.aggregate({

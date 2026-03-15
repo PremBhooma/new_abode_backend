@@ -12,6 +12,8 @@ const logger = require("../helper/logger");
 const xlsx = require("xlsx");
 const dayjs = require("dayjs");
 const { v4: uuidv4 } = require('uuid');
+const { updateAgeingRecordTotal } = require("./paymentsController");
+
 
 let currentTask = null;
 
@@ -2010,11 +2012,27 @@ exports.uploadParsedGlobal = async (req, res) => {
                         }
 
                         // ✅ Insert payments
+                        const customer_id = existingFlat?.customer_id;
+                        const existingPaymentCount = await prisma.payments.count({
+                            where: {
+                                flat_id: existingFlat?.id,
+                                project_id: project_id,
+                                customer_id: customer_id ? customer_id : null,
+                            },
+                        });
+
+                        if (existingPaymentCount === 0) {
+                            await prisma.flat.update({
+                                where: { id: existingFlat?.id },
+                                data: { advance_payment: true },
+                            });
+                        }
+
                         const customer = await prisma.payments.create({
                             data: {
                                 id: uuidv4(),
                                 flat_id: existingFlat?.id,
-                                customer_id: existingFlat?.customer_id,
+                                customer_id: customer_id,
                                 amount: parseFloat(row["Amount"]) || null,
                                 payment_type: row["Payment Type"],
                                 payment_towards: row["Payment Towards"],
@@ -2024,6 +2042,7 @@ exports.uploadParsedGlobal = async (req, res) => {
                                 trasnaction_id: row["Transaction Id"],
                                 comment: row["Comment"],
                                 added_by_employee_id: employee_id,
+                                project_id: project_id,
                             },
                         });
 
@@ -2035,6 +2054,11 @@ exports.uploadParsedGlobal = async (req, res) => {
                                 employee_id: employee_id,
                             },
                         });
+
+                        // Update Ageing Record Total Amount
+                        if (blockRecord?.id) {
+                            await updateAgeingRecordTotal(existingFlat?.id, project_id, blockRecord.id, customer_id);
+                        }
 
 
                         paymentResult.inserted++;
