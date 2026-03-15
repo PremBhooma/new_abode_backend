@@ -755,123 +755,122 @@ exports.UpdateCustomerFlat = async (req, res) => {
     const customerFlatListCreate = await prisma.customerflat.update({
       where: { id: customerFlatId },
       data: {
-        flat_id: flat_id ? flat_id : existingCustomerFlat.flat_id,
-        customer_id: customer?.id
-          ? customer?.id
-          : existingCustomerFlat.customer_id,
+        flat_id: final_flat_id,
+        customer_id: customerExist?.id
+          ? customerExist?.id
+          : customerFlatExist.customer_id,
         saleable_area_sq_ft: compareAndTrack(
           "Saleable Area Sqft",
           saleable_area_sq_ft,
-          existingCustomerFlat.saleable_area_sq_ft,
+          customerFlatExist.saleable_area_sq_ft,
         ),
         rate_per_sq_ft: compareAndTrack(
           "Rate Per Sqft",
           rate_per_sq_ft,
-          existingCustomerFlat.rate_per_sq_ft,
+          customerFlatExist.rate_per_sq_ft,
         ),
         discount: compareAndTrack(
           "Discount",
           discount,
-          existingCustomerFlat.discount,
+          customerFlatExist.discount,
         ),
         base_cost_unit: compareAndTrack(
           "Base Cost Unit",
           base_cost_unit,
-          existingCustomerFlat.base_cost_unit,
+          customerFlatExist.base_cost_unit,
         ),
         application_date: applicationdate
           ? compareAndTrack(
             "Application Date",
             new Date(applicationdate).toISOString(),
-            existingCustomerFlat.application_date?.toISOString(),
+            customerFlatExist.application_date?.toISOString(),
           )
-          : existingCustomerFlat.application_date,
+          : customerFlatExist.application_date,
         amenities: compareAndTrack(
           "Amenities",
           amenities,
-          existingCustomerFlat.amenities,
+          customerFlatExist.amenities,
         ),
         toatlcostofuint: compareAndTrack(
           "Total Cost of Unit",
           toatlcostofuint,
-          existingCustomerFlat.toatlcostofuint,
+          customerFlatExist.toatlcostofuint,
         ),
-        gst: compareAndTrack("GST", gst, existingCustomerFlat.gst),
+        gst: compareAndTrack("GST", gst, customerFlatExist.gst),
         costofunitwithtax: compareAndTrack(
           "Cost of Unit With Tax",
           costofunitwithtax,
-          existingCustomerFlat.costofunitwithtax,
+          customerFlatExist.costofunitwithtax,
         ),
         registrationcharge: compareAndTrack(
           "Registration Charge",
           registrationcharge,
-          existingCustomerFlat.registrationcharge,
+          customerFlatExist.registrationcharge,
         ),
         maintenancecharge: compareAndTrack(
           "Maintenance Charge",
           maintenancecharge,
-          existingCustomerFlat.maintenancecharge,
+          customerFlatExist.maintenancecharge,
         ),
         manjeera_connection_charge: compareAndTrack(
           "Manjeera Connection Charge",
           manjeeraConnectionCharge,
-          existingCustomerFlat.manjeera_connection_charge,
+          customerFlatExist.manjeera_connection_charge,
         ),
         manjeera_meter_charge: compareAndTrack(
           "Manjeera Meter Charge",
           manjeeraMeterCharge,
-          existingCustomerFlat.manjeera_meter_charge,
+          customerFlatExist.manjeera_meter_charge,
         ),
         documentaionfee: compareAndTrack(
           "Documentaion Fee",
           documentaionfee,
-          existingCustomerFlat.documentaionfee,
+          customerFlatExist.documentaionfee,
         ),
         corpusfund: compareAndTrack(
           "Corpus Fund",
           corpusfund,
-          existingCustomerFlat.corpusfund,
+          customerFlatExist.corpusfund,
         ),
-
         floor_rise_per_sq_ft: compareAndTrack(
           "Floor Rise Per Sqft",
           floor_rise_per_sq_ft,
-          existingCustomerFlat.floor_rise_per_sq_ft,
+          customerFlatExist.floor_rise_per_sq_ft,
         ),
         total_floor_rise: compareAndTrack(
           "Total Floor Rise",
           total_floor_rise,
-          existingCustomerFlat.total_floor_rise,
+          customerFlatExist.total_floor_rise,
         ),
         east_facing_per_sq_ft: compareAndTrack(
           "East Facing Per Sqft",
           east_facing_per_sq_ft,
-          existingCustomerFlat.east_facing_per_sq_ft,
+          customerFlatExist.east_facing_per_sq_ft,
         ),
         total_east_facing: compareAndTrack(
           "Total East Facing",
           total_east_facing,
-          existingCustomerFlat.total_east_facing,
+          customerFlatExist.total_east_facing,
         ),
         corner_per_sq_ft: compareAndTrack(
           "Corner Per Sqft",
           corner_per_sq_ft,
-          existingCustomerFlat.corner_per_sq_ft,
+          customerFlatExist.corner_per_sq_ft,
         ),
         total_corner: compareAndTrack(
           "Total Corner",
           total_corner,
-          existingCustomerFlat.total_corner,
+          customerFlatExist.total_corner,
         ),
         grand_total: compareAndTrack(
           "Grand Total",
           grand_total,
-          existingCustomerFlat.grand_total,
+          customerFlatExist.grand_total,
         ),
         custom_note: compareAndTrack(
           "Custom Note",
           custom_note,
-          existingCustomerFlat.custom_note,
+          customerFlatExist.custom_note,
         ),
         updated_at: new Date(),
       },
@@ -890,7 +889,7 @@ exports.UpdateCustomerFlat = async (req, res) => {
 
     await prisma.flat.update({
       where: {
-        id: flat_id,
+        id: final_flat_id,
       },
       data: {
         totalAmount: parseFloat(toatlcostofuint),
@@ -899,7 +898,7 @@ exports.UpdateCustomerFlat = async (req, res) => {
 
     const customerAct = await prisma.taskactivities.create({
       data: {
-        flat_id: flat_id,
+        flat_id: final_flat_id,
         employee_id: employeeId,
         ta_message: `Flat ${customerFlatListCreate.flat.flat_no} assigned to customer`,
         employee_short_name: "F",
