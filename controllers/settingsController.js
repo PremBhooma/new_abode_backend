@@ -1041,27 +1041,29 @@ exports.uploadParsedGlobal = async (req, res) => {
                             continue;
                         }
 
-                        const project_id = projectMap[row["Project"] ? String(row["Project"]).trim().toLowerCase() : ""];
+                        const robustTrim = (val) => {
+                            if (!val) return "";
+                            return String(val).trim().replace(/\u00A0/g, ' ');
+                        };
+
+                        const projectName = robustTrim(row["Project"]);
+                        const project_id = projectMap[projectName.toLowerCase()];
                         if (!project_id) {
                             flatResult.skipped++;
-                            flatResult.skippedRows.push({ row, reason: "Project not found" });
+                            flatResult.skippedRows.push({ row, reason: `Project not found: ${projectName}` });
                             continue;
                         }
 
-                        let blockName = row["Block"] ? String(row["Block"]).trim() : "";
+                        let blockName = robustTrim(row["Block"]);
                         let blockRecord = await prisma.block.findFirst({
-                            where: { block_name: blockName, project_id: project_id },
+                            where: { block_name: blockName },
                         });
 
-                        // if (!blockRecord && blockName) {
-                        //     blockRecord = await prisma.block.create({
-                        //         data: {
-                        //             id: uuidv4(),
-                        //             block_name: blockName,
-                        //             project_id: project_id,
-                        //         },
-                        //     });
-                        // }
+                        if (!blockRecord && blockName) {
+                            flatResult.skipped++;
+                            flatResult.skippedRows.push({ row, reason: "Block not found" });
+                            continue;
+                        }
 
                         let groupOwnerRecord = null;
                         let groupOwnerName = row["Group/Owner"] ? String(row["Group/Owner"]).trim() : null;
@@ -1089,7 +1091,7 @@ exports.uploadParsedGlobal = async (req, res) => {
                                 project_id: project_id,
                                 flat_no: row["Flat No"].toString(),
                                 floor_no: row["Floor No"].toString(),
-                                block_id: blockRecord.id,
+                                block_id: blockRecord?.id,
                             },
                         });
 
@@ -1124,7 +1126,7 @@ exports.uploadParsedGlobal = async (req, res) => {
                                 id: uuidv4(),
                                 flat_no: row["Flat No"].toString(),
                                 floor_no: floorNoVal,
-                                block_id: blockRecord.id,
+                                block_id: blockRecord?.id,
                                 square_feet: row["Area(Sq.ft.)"] ? parseFloat(row["Area(Sq.ft.)"]) : null,
                                 udl: row["UDL"]?.toString(),
                                 deed_number: row["Deed No"]?.toString(),
@@ -1242,10 +1244,16 @@ exports.uploadParsedGlobal = async (req, res) => {
                             continue;
                         }
 
-                        const project_id = projectMap[row["Project"] ? String(row["Project"]).trim().toLowerCase() : ""];
+                        const robustTrim = (val) => {
+                            if (!val) return "";
+                            return String(val).trim().replace(/\u00A0/g, ' ');
+                        };
+
+                        const projectName = robustTrim(row["Project"]);
+                        const project_id = projectMap[projectName.toLowerCase()];
                         if (!project_id) {
                             customerResult.skipped++;
-                            customerResult.skippedRows.push({ row, reason: "Project not found" });
+                            customerResult.skippedRows.push({ row, reason: `Project not found: ${projectName}` });
                             continue;
                         }
 
@@ -1308,28 +1316,41 @@ exports.uploadParsedGlobal = async (req, res) => {
                         }
 
                         // ✅ Date validations
-                        const dob = parseDate(row["Date of Birth"]);
-                        const anniversary = parseDate(row["Wedding Aniversary"]);
-                        const spouseDob = parseDate(row["Spouse DOB"]);
+                        const dobValue = row["Date of Birth"];
+                        const anniversaryValue = row["Wedding Anniversary"];
+                        const spouseDobValue = row["Spouse DOB"];
 
-                        // Validate DOB
-                        if (!dob) {
+                        const dob = parseDate(dobValue);
+                        const anniversary = parseDate(anniversaryValue);
+                        const spouseDob = parseDate(spouseDobValue);
+
+                        // Validate DOB (only if value exists)
+                        if (dobValue && !dob) {
                             customerResult.skipped++;
-                            customerResult.skippedRows.push({ row, reason: `Invalid Date of Birth format: ${row["Date of Birth"]}. Allowed formats: DD/MM/YYYY, D/M/YYYY, DD-MM-YYYY, D-M-YYYY, MM/DD/YYYY, MM-DD-YYYY, YYYY-MM-DD` });
+                            customerResult.skippedRows.push({
+                                row,
+                                reason: `Invalid Date of Birth format: ${dobValue}. Allowed formats: DD/MM/YYYY, D/M/YYYY, DD-MM-YYYY, D-M-YYYY, MM/DD/YYYY, MM-DD-YYYY, YYYY-MM-DD`
+                            });
                             continue;
                         }
 
-                        // Validate Anniversary
-                        if (!anniversary) {
+                        // Validate Anniversary (only if value exists)
+                        if (anniversaryValue && !anniversary) {
                             customerResult.skipped++;
-                            customerResult.skippedRows.push({ row, reason: `Invalid Wedding Anniversary format: ${row["Wedding Anniversary"]}. Allowed formats: DD/MM/YYYY, D/M/YYYY, DD-MM-YYYY, D-M-YYYY, MM/DD/YYYY, MM-DD-YYYY, YYYY-MM-DD` });
+                            customerResult.skippedRows.push({
+                                row,
+                                reason: `Invalid Wedding Anniversary format: ${anniversaryValue}. Allowed formats: DD/MM/YYYY, D/M/YYYY, DD-MM-YYYY, D-M-YYYY, MM/DD/YYYY, MM-DD-YYYY, YYYY-MM-DD`
+                            });
                             continue;
                         }
 
-                        // Validate Spouse DOB
-                        if (!spouseDob) {
+                        // Validate Spouse DOB (only if value exists)
+                        if (spouseDobValue && !spouseDob) {
                             customerResult.skipped++;
-                            customerResult.skippedRows.push({ row, reason: `Invalid Spouse DOB format: ${row["Spouse DOB"]}. Allowed formats: DD/MM/YYYY, D/M/YYYY, DD-MM-YYYY, D-M-YYYY, MM/DD/YYYY, MM-DD-YYYY, YYYY-MM-DD` });
+                            customerResult.skippedRows.push({
+                                row,
+                                reason: `Invalid Spouse DOB format: ${spouseDobValue}. Allowed formats: DD/MM/YYYY, D/M/YYYY, DD-MM-YYYY, D-M-YYYY, MM/DD/YYYY, MM-DD-YYYY, YYYY-MM-DD`
+                            });
                             continue;
                         }
 
@@ -1528,6 +1549,7 @@ exports.uploadParsedGlobal = async (req, res) => {
                             "Booking Date",
                             "Saleable Area (sq.ft.)",
                             "Rate Per Sq.ft (₹)",
+                            "Amenities (₹)",
                         ];
                         const missingFields = requiredFieldLabels.filter((field) => isBlankCell(row[field]));
 
@@ -1550,17 +1572,23 @@ exports.uploadParsedGlobal = async (req, res) => {
                             continue;
                         }
 
-                        const project_id = projectMap[row["Project"] ? String(row["Project"]).trim().toLowerCase() : ""];
+                        const robustTrim = (val) => {
+                            if (!val) return "";
+                            return String(val).trim().replace(/\u00A0/g, ' ');
+                        };
+
+                        const projectName = robustTrim(row["Project"]);
+                        const project_id = projectMap[projectName.toLowerCase()];
                         if (!project_id) {
                             assignFlatToCustomerResult.skipped++;
-                            assignFlatToCustomerResult.skippedRows.push({ row, reason: "Project not found" });
+                            assignFlatToCustomerResult.skippedRows.push({ row, reason: `Project not found: ${projectName}` });
                             continue;
                         }
 
                         // Find Block
-                        let blockName = row["Block"] ? String(row["Block"]).trim() : "";
+                        let blockName = robustTrim(row["Block"]);
                         const blockRecord = await prisma.block.findFirst({
-                            where: { block_name: blockName, project_id: project_id },
+                            where: { block_name: blockName },
                         });
 
                         if (!blockRecord) {
@@ -1672,6 +1700,15 @@ exports.uploadParsedGlobal = async (req, res) => {
                                 assignFlatToCustomerResult.skippedRows.push({
                                     row,
                                     reason: `Amenities amount for Flat Type '${existingFlat?.type}' in Project '${row["Project"]}' does not exist. Please add the value in Amenities configuration and download the file again.`,
+                                });
+                                continue;
+                            }
+
+                            if (enteredAmenities === 0) {
+                                assignFlatToCustomerResult.skipped++;
+                                assignFlatToCustomerResult.skippedRows.push({
+                                    row,
+                                    reason: `Enter the proper amenities amount.`,
                                 });
                                 continue;
                             }
@@ -1788,7 +1825,6 @@ exports.uploadParsedGlobal = async (req, res) => {
                 };
 
 
-                console.log("Date_DATE:", parseDate)
 
 
 
@@ -1801,22 +1837,28 @@ exports.uploadParsedGlobal = async (req, res) => {
                             continue;
                         }
 
-                        const project_id = projectMap[row["Project"] ? String(row["Project"]).trim().toLowerCase() : ""];
+                        const robustTrim = (val) => {
+                            if (!val) return "";
+                            return String(val).trim().replace(/\u00A0/g, ' ');
+                        };
+
+                        const projectName = robustTrim(row["Project"]);
+                        const project_id = projectMap[projectName.toLowerCase()];
                         if (!project_id) {
                             paymentResult.skipped++;
-                            paymentResult.skippedRows.push({ row, reason: "Project not found" });
+                            paymentResult.skippedRows.push({ row, reason: `Project not found: ${projectName}` });
                             continue;
                         }
 
                         // Find Block
-                        let blockName = row["Block"] ? String(row["Block"]).trim() : "";
+                        let blockName = robustTrim(row["Block"]);
                         const blockRecord = await prisma.block.findFirst({
                             where: { block_name: blockName, project_id: project_id },
                         });
 
                         if (!blockRecord) {
                             paymentResult.skipped++;
-                            paymentResult.skippedRows.push({ row, reason: "Block not found" });
+                            paymentResult.skippedRows.push({ row, reason: `Block not found: ${blockName}` });
                             continue;
                         }
 

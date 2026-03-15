@@ -3395,29 +3395,33 @@ exports.uploadParsedCustomers = async (req, res) => {
           }
 
           // ✅ Date validations
-          const dob = parseDate(row["Date of Birth"]);
-          const anniversary = parseDate(row["Wedding Aniversary"]);
-          const spouseDob = parseDate(row["Spouse DOB"]);
+          const dobValue = row["Date of Birth"];
+          const anniversaryValue = row["Wedding Aniversary"];
+          const spouseDobValue = row["Spouse DOB"];
+
+          const dob = dobValue ? parseDate(dobValue) : null;
+          const anniversary = anniversaryValue ? parseDate(anniversaryValue) : null;
+          const spouseDob = spouseDobValue ? parseDate(spouseDobValue) : null;
 
 
           // Validate DOB
-          if (row["Date of Birth"] && !dob) {
+          if (dobValue && !dob) {
             throw new Error(
-              `Invalid Date of Birth format: '${row["Date of Birth"]}'. Allowed formats: DD/MM/YYYY, DD-MM-YYYY, MM/DD/YYYY, YYYY-MM-DD`
+              `Invalid Date of Birth format: '${dobValue}'. Allowed formats: DD/MM/YYYY, D/M/YYYY, DD-MM-YYYY, D-M-YYYY, MM/DD/YYYY, MM-DD-YYYY, YYYY-MM-DD`
             );
           }
 
           // Validate Anniversary
-          if (row["Wedding Aniversary"] && !anniversary) {
+          if (anniversaryValue && !anniversary) {
             throw new Error(
-              `Invalid Wedding Anniversary format: '${row["Wedding Aniversary"]}'. Allowed formats: DD/MM/YYYY, DD-MM-YYYY, MM/DD/YYYY, YYYY-MM-DD`
+              `Invalid Wedding Anniversary format: '${anniversaryValue}'. Allowed formats: DD/MM/YYYY, D/M/YYYY, DD-MM-YYYY, D-M-YYYY, MM/DD/YYYY, MM-DD-YYYY, YYYY-MM-DD`
             );
           }
 
           // Validate Spouse DOB
-          if (row["Spouse DOB"] && !spouseDob) {
+          if (spouseDobValue && !spouseDob) {
             throw new Error(
-              `Invalid Spouse DOB format: '${row["Spouse DOB"]}'. Allowed formats: DD/MM/YYYY, DD-MM-YYYY, MM/DD/YYYY, YYYY-MM-DD`
+              `Invalid Spouse DOB format: '${spouseDobValue}'. Allowed formats: DD/MM/YYYY, D/M/YYYY, DD-MM-YYYY, D-M-YYYY, MM/DD/YYYY, MM-DD-YYYY, YYYY-MM-DD`
             );
           }
 
