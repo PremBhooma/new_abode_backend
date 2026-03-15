@@ -1053,15 +1053,15 @@ exports.uploadParsedGlobal = async (req, res) => {
                             where: { block_name: blockName, project_id: project_id },
                         });
 
-                        if (!blockRecord && blockName) {
-                            blockRecord = await prisma.block.create({
-                                data: {
-                                    id: uuidv4(),
-                                    block_name: blockName,
-                                    project_id: project_id,
-                                },
-                            });
-                        }
+                        // if (!blockRecord && blockName) {
+                        //     blockRecord = await prisma.block.create({
+                        //         data: {
+                        //             id: uuidv4(),
+                        //             block_name: blockName,
+                        //             project_id: project_id,
+                        //         },
+                        //     });
+                        // }
 
                         let groupOwnerRecord = null;
                         let groupOwnerName = row["Group/Owner"] ? String(row["Group/Owner"]).trim() : null;
@@ -1652,6 +1652,41 @@ exports.uploadParsedGlobal = async (req, res) => {
                             }
                         }
 
+                        // Fetch Amenities configuration for this project and flat type
+                        const amenitiesConfig = await prisma.amenities.findFirst({
+                            where: {
+                                project_id: project_id,
+                                flat_type: existingFlat?.type
+                            }
+                        });
+
+                        let amenitiesAmount = null;
+
+                        if (row["Amenities (₹)"]) {
+
+                            const enteredAmenities = parseFloat(row["Amenities (₹)"]);
+
+                            if (!amenitiesConfig) {
+                                assignFlatToCustomerResult.skipped++;
+                                assignFlatToCustomerResult.skippedRows.push({
+                                    row,
+                                    reason: `Amenities configuration not found for Flat Type ${existingFlat?.type}`
+                                });
+                                continue;
+                            }
+
+                            if (enteredAmenities > amenitiesConfig.amount) {
+                                assignFlatToCustomerResult.skipped++;
+                                assignFlatToCustomerResult.skippedRows.push({
+                                    row,
+                                    reason: `Amenities amount exceeds allowed limit (${amenitiesConfig.amount}) for Flat Type ${existingFlat?.type}`
+                                });
+                                continue;
+                            }
+
+                            amenitiesAmount = enteredAmenities;
+                        }
+
 
 
                         // ✅ Date validations
@@ -1677,7 +1712,7 @@ exports.uploadParsedGlobal = async (req, res) => {
                                 total_east_facing: totalEastFacing,
                                 corner_per_sq_ft: corner,
                                 total_corner: totalCorner,
-                                amenities: parseFloat(row["Amenities (₹)"]) || null,
+                                amenities: amenitiesAmount,
                                 toatlcostofuint: parseFloat(row["Total Cost of Unit (₹)"]) || null,
                                 gst: parseFloat(row["GST (₹)"]) || null,
                                 costofunitwithtax: parseFloat(row["Cost of Unit with Tax (₹)"]) || null,
