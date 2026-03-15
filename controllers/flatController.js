@@ -2704,6 +2704,7 @@ exports.uploadParsedFlats = async (req, res) => {
             "Area(Sq.ft.)",
             "Flat Type",
             "Facing",
+            "Corner",
           ];
 
           const missingFields = requiredFields.filter(
