@@ -1669,12 +1669,37 @@ exports.uploadParsedPayments = async (req, res) => {
                 flat_id: dbFlat.id,
               },
               orderBy: { created_at: "desc" },
-              include: { customer: true }
+              // include: { customer: true }
+              select: {
+                application_date: true,
+                customer: {
+                  select: { id: true }
+                }
+              }
             });
 
             if (!dbCustomerFlat || !dbCustomerFlat.customer) {
               skipReason.push("No Active Customer found for this assigned Flat/Project");
               isValid = false;
+            }
+
+            if (isValid && dbCustomerFlat?.application_date && paymentData) {
+
+              const bookingDate = new Date(dbCustomerFlat.application_date);
+              const paymentDate = new Date(paymentData);
+              const presentDate = new Date();
+
+              // Normalize to YYYY-MM-DD strings
+              const bookingValue = bookingDate.toISOString().slice(0, 10);
+              const paymentValue = paymentDate.toISOString().slice(0, 10);
+              const presentDateValue = presentDate.toISOString().slice(0, 10);
+
+              if (paymentValue < bookingValue || paymentValue > presentDateValue) {
+                skipReason.push(
+                  `Payment date must be between Booking Date (${bookingValue}) and today`
+                );
+                isValid = false;
+              }
             }
           }
         }

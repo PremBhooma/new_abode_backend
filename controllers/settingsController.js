@@ -1805,6 +1805,7 @@ exports.uploadParsedGlobal = async (req, res) => {
                             where: { flat_id: existingFlat?.id },
                             select: {
                                 toatlcostofuint: true,
+                                application_date: true,
                                 grand_total: true,
                                 flat: { select: { flat_no: true, block: { select: { block_name: true } } } },
                             },
@@ -1838,14 +1839,35 @@ exports.uploadParsedGlobal = async (req, res) => {
 
                         // ✅ Date validations
                         const parsedDateOfPayment = parseDate(row["Date of Payment"]);
-                        console.log("Row_DATE:", row["Date of Payment"])
-                        console.log("FINAL_DATE:", parsedDateOfPayment)
 
                         if (!parsedDateOfPayment) {
                             paymentResult.skipped++;
                             paymentResult.skippedRows.push({
                                 row,
                                 reason: "Invalid Date of Payment. Supported formats: DD/MM/YYYY, DD-MM-YYYY, MM/DD/YYYY, MM-DD-YYYY, YYYY-MM-DD, or Excel date cells.",
+                            });
+                            continue;
+                        }
+
+                        const bookingDate = new Date(flatCost?.application_date);
+                        const paymentDate = new Date(parsedDateOfPayment);
+                        const presentDate = new Date();
+
+                        console.log("Booking Date:", bookingDate);
+                        console.log("Present Date:", presentDate);
+                        console.log("FINAL_DATE:", paymentDate);
+
+                        // normalize to YYYY-MM-DD
+                        const bookingValue = bookingDate.toISOString().slice(0, 10);
+                        const paymentValue = paymentDate.toISOString().slice(0, 10);
+                        const presentValue = presentDate.toISOString().slice(0, 10);
+
+                        // ❌ error only if outside range
+                        if (paymentValue < bookingValue || paymentValue > presentValue) {
+                            paymentResult.skipped++;
+                            paymentResult.skippedRows.push({
+                                row,
+                                reason: `Payment date must be between Booking Date (${bookingValue}) and today.`,
                             });
                             continue;
                         }
