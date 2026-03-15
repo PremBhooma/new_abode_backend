@@ -1449,6 +1449,12 @@ exports.uploadParsedGlobal = async (req, res) => {
                     row => row["Flat No"] || row["Block"] || row["Customer Phone"]
                 );
 
+                const isBlankCell = (value) => {
+                    if (value === null || value === undefined) return true;
+                    if (typeof value === "string") return value.trim() === "";
+                    return false;
+                };
+
                 const parseDate = (val) => {
                     if (!val) return null;
 
@@ -1474,9 +1480,33 @@ exports.uploadParsedGlobal = async (req, res) => {
 
 
                         // ✅ Required fields
-                        if (!row["Flat No"] || !row["Block"] || !row["Customer Phone"] || !row["Project"]) {
+                        const requiredFieldLabels = [
+                            "Project",
+                            "Flat No",
+                            "Block",
+                            "Customer Phone",
+                            "Booking Date",
+                            "Saleable Area (sq.ft.)",
+                            "Rate Per Sq.ft (₹)",
+                        ];
+                        const missingFields = requiredFieldLabels.filter((field) => isBlankCell(row[field]));
+
+                        if (missingFields.length > 0) {
                             assignFlatToCustomerResult.skipped++;
-                            assignFlatToCustomerResult.skippedRows.push({ row, reason: "Missing one of the required fields - Project, Flat, Block, Customer Phone" });
+                            assignFlatToCustomerResult.skippedRows.push({
+                                row,
+                                reason: `Missing required fields - ${missingFields.join(", ")}`,
+                            });
+                            continue;
+                        }
+
+                        const parsedBookingDate = parseDate(row["Booking Date"]);
+                        if (!parsedBookingDate) {
+                            assignFlatToCustomerResult.skipped++;
+                            assignFlatToCustomerResult.skippedRows.push({
+                                row,
+                                reason: "Invalid Booking Date. Use a valid date format.",
+                            });
                             continue;
                         }
 
@@ -1585,7 +1615,7 @@ exports.uploadParsedGlobal = async (req, res) => {
 
 
                         // ✅ Date validations
-                        const parsedApplicationDate = parseDate(row["Booking Date"]);
+                        const parsedApplicationDate = parsedBookingDate;
 
 
 
