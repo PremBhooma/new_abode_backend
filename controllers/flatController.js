@@ -801,7 +801,7 @@ module.exports.UpdateFlat = async (req, res) => {
           data: {
             employee_id: employee_id,
             customerflat_id: customerFlatDetails?.id,
-            message: changes.map((c) => `• ${c}`).join("\n"),
+            message: changes.join("\n"),
           },
         });
       }

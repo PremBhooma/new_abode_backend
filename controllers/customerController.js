@@ -882,7 +882,7 @@ exports.UpdateCustomerFlat = async (req, res) => {
         data: {
           employee_id: employeeId,
           customerflat_id: customerFlatId,
-          message: changes.map((c) => `• ${c}`).join("\n"),
+          message: changes.join("\n"),
         },
       });
     }
@@ -4036,7 +4036,7 @@ exports.uploadCostSheet = async (req, res) => {
         data: {
           customerflat_id: customer_flat_id,
           employee_id: employee_id,
-          message: `• Uploaded new Cost Sheet: ${originalFilename}`,
+          message: `Uploaded new Cost Sheet: ${originalFilename}`,
           created_at: new Date(),
         },
       });
