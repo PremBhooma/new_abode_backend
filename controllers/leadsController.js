@@ -2250,6 +2250,22 @@ exports.UploadParsedLeads = async (req, res) => {
             continue;
           }
 
+          // ✅ Validate Employee Project association through EmployeeProjectPermission
+          const projectPermission = await prisma.employeeProjectPermission.findFirst({
+            where: {
+              employee_id: assignedEmployee.id,
+              project_id: projectId,
+            },
+          });
+
+          if (!projectPermission) {
+            skipped.push({
+              row,
+              reason: `Employee '${assignedEmployee.name}' is not allocated to project '${row["Project"]}'`,
+            });
+            continue;
+          }
+
           // ✅ Resolve location data with error handling
           const resolveLocation = async (countryName, stateName, cityName) => {
             let countryId = null,
