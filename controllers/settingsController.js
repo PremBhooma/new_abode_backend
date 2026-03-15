@@ -1688,42 +1688,42 @@ exports.uploadParsedGlobal = async (req, res) => {
                             }
                         });
 
+
                         let amenitiesAmount = null;
 
-                        if (row["Amenities (₹)"]) {
+                        const amenitiesValue = row["Amenities (₹)"];
 
-                            const enteredAmenities = parseFloat(row["Amenities (₹)"]);
+                        if (amenitiesValue !== undefined && amenitiesValue !== null && amenitiesValue !== "") {
 
-                            // ❌ Amenities config not found
-                            if (!amenitiesConfig) {
-                                assignFlatToCustomerResult.skipped++;
-                                assignFlatToCustomerResult.skippedRows.push({
-                                    row,
-                                    reason: `Amenities amount for Flat Type '${existingFlat?.type}' in Project '${row["Project"]}' does not exist. Please add the value in Amenities configuration and download the file again.`,
-                                });
-                                continue;
-                            }
+                            const enteredAmenities = parseFloat(amenitiesValue);
 
                             if (enteredAmenities === 0) {
                                 assignFlatToCustomerResult.skipped++;
                                 assignFlatToCustomerResult.skippedRows.push({
                                     row,
-                                    reason: `Enter the proper amenities amount.`,
+                                    reason: "Amenities amount cannot be 0.",
                                 });
                                 continue;
                             }
 
-                            // ❌ Entered value must match config amount exactly
+                            if (!amenitiesConfig) {
+                                assignFlatToCustomerResult.skipped++;
+                                assignFlatToCustomerResult.skippedRows.push({
+                                    row,
+                                    reason: `Amenities amount for Flat Type '${existingFlat?.type}' in Project '${row["Project"]}' does not exist.`,
+                                });
+                                continue;
+                            }
+
                             if (enteredAmenities !== amenitiesConfig.amount) {
                                 assignFlatToCustomerResult.skipped++;
                                 assignFlatToCustomerResult.skippedRows.push({
                                     row,
-                                    reason: `Amenities amount must be exactly ${amenitiesConfig.amount} for Flat Type '${existingFlat?.type}' in this project.`,
+                                    reason: `Amenities amount must be exactly ${amenitiesConfig.amount}.`,
                                 });
                                 continue;
                             }
 
-                            // ✅ Valid value
                             amenitiesAmount = enteredAmenities;
                         }
 
