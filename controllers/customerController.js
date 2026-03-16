@@ -3277,7 +3277,6 @@ exports.uploadParsedCustomers = async (req, res) => {
             "Project",
             "Prefixes",
             "First Name",
-            "Last Name",
             "Phone Number",
             "Gender"
           ];
