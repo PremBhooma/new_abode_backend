@@ -740,6 +740,7 @@ exports.EditLead = async (req, res) => {
     project_id,
   } = req.body;
 
+
   try {
     if (!leadUuid) {
       return res.status(200).json({
@@ -780,25 +781,39 @@ exports.EditLead = async (req, res) => {
       }
     }
 
-    if (
-      (phone_code && phone_code !== leadExist?.phone_code) ||
-      (phone_number && phone_number !== leadExist?.phone_number)
-    ) {
-      const isPhoneExist = await prisma.leads.findFirst({
-        where: {
-          phone_code,
-          phone_number,
-          project_id: leadExist?.project_id,
-          id: { not: leadUuid },
-        },
-      });
+    // if (
+    //   (phone_code && phone_code !== leadExist?.phone_code) ||
+    //   (phone_number && phone_number !== leadExist?.phone_number)
+    // ) {
+    //   const isPhoneExist = await prisma.leads.findFirst({
+    //     where: {
+    //       phone_code,
+    //       phone_number,
+    //       project_id: leadExist?.project_id,
+    //       id: { not: leadUuid },
+    //     },
+    //   });
 
-      if (isPhoneExist) {
-        return res.status(200).json({
-          status: "error",
-          message: "Phone number already exists",
-        });
-      }
+    //   if (isPhoneExist) {
+    //     return res.status(200).json({
+    //       status: "error",
+    //       message: "Phone number already exists",
+    //     });
+    //   }
+    // }
+
+    const existingPhone = await prisma.leads.findFirst({
+      where: {
+        phone_code,
+        phone_number,
+        project_id: project_id ? project_id : undefined,
+      },
+    });
+    if (existingPhone) {
+      return res.status(200).json({
+        status: "error",
+        message: "Phone number already exists",
+      });
     }
 
     const updatedLead = await prisma.leads.update({
